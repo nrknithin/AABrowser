@@ -230,6 +230,11 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
     }
 
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        startPageManager.onConfigurationChanged(newConfig)
+    }
+
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         permissionManager.handleRequestPermissionsResult(requestCode, grantResults) { granted ->

@@ -86,13 +86,19 @@ class StartPageManager(
         loadedStartPageBackgroundUri = null
     }
 
+    fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        val columns = if (newConfig.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE) 4 else 2
+        (binding.startPageQuickLinksContainer.layoutManager as? GridLayoutManager)?.spanCount = columns
+    }
+
     private fun setupRecyclerView() {
         if (binding.startPageQuickLinksContainer.adapter != null) {
             return
         }
         
+        val columns = if (activity.resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE) 4 else 2
         binding.startPageQuickLinksContainer.apply {
-            layoutManager = GridLayoutManager(activity, 2)
+            layoutManager = GridLayoutManager(activity, columns)
             adapter = startPageAdapter
         }
 
