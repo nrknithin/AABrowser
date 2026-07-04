@@ -48,8 +48,7 @@ data class SettingsCallbacks(
     val onHomePageChanged: () -> Unit = {},
     val onInAppControlsChanged: () -> Unit = {},
     val onPickStartPageBackground: (() -> Unit)? = null,
-    val onClearStartPageBackground: (() -> Unit)? = null,
-    val onSponsorsVisibilityChanged: () -> Unit = {}
+    val onClearStartPageBackground: (() -> Unit)? = null
 )
 
 object SettingsViews {
@@ -884,119 +883,6 @@ object SettingsViews {
 
         uaCard.addView(uaInner)
         container.addView(uaCard)
-
-        val sponsorsCard = createStyledCard()
-        val sponsorsInner = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(16), dp(16), dp(16))
-        }
-        sponsorsInner.addView(createSectionTitle(context.getString(R.string.settings_sponsors), R.drawable.volunteer_activism_24px, bottomPaddingDp = 4))
-        sponsorsInner.addView(TextView(context).apply {
-            text = context.getString(R.string.settings_sponsors_description)
-            setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_BodyMedium)
-            setTextColor(onSurfaceColor)
-            setPadding(0, dp(4), 0, 0)
-        })
-        val sponsorUrl = "https://github.com/sponsors/kododake"
-
-        val sponsorsRow = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(0, dp(16), 0, 0)
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        val sponsorsQrImage = ImageView(context).apply {
-            layoutParams = LinearLayout.LayoutParams(dp(100), dp(100))
-            setPadding(dp(1), dp(1), dp(1), dp(1))
-            setBackgroundColor(Color.WHITE)
-        }
-        sponsorsRow.addView(sponsorsQrImage)
-        val sponsorsCol = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
-                marginStart = dp(16)
-            }
-        }
-        val sponsorsAddressView = TextView(context).apply {
-            text = sponsorUrl
-            setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_BodySmall)
-            setTextColor(onSurfaceColor)
-        }
-        val sponsorsActionButton = MaterialButton(context, null, com.google.android.material.R.attr.materialButtonTonalStyle).apply {
-            text = context.getString(R.string.settings_sponsors_open_github_sponsors)
-            setIconResource(R.drawable.favorite_24px)
-            val pink = ColorStateList.valueOf(Color.parseColor("#EC407A"))
-            iconTint = pink
-            iconSize = smallIconSize
-            iconPadding = dp(8)
-            backgroundTintList = ColorStateList.valueOf(getColorFromAttr(com.google.android.material.R.attr.colorSecondaryContainer))
-            setTextColor(getColorFromAttr(com.google.android.material.R.attr.colorOnSecondaryContainer))
-            isClickable = true
-            isFocusable = true
-            setOnClickListener {
-                try {
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(sponsorUrl))
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    context.startActivity(intent)
-                } catch (_: Exception) {
-                    Toast.makeText(context, R.string.error_generic_message, Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-        sponsorsCol.addView(sponsorsAddressView)
-        sponsorsCol.addView(sponsorsActionButton)
-        sponsorsRow.addView(sponsorsCol)
-        sponsorsInner.addView(sponsorsRow)
-
-        sponsorsQrImage.setImageBitmap(com.kododake.aabrowser.ui.QRUtils.generateQrCode(sponsorUrl, dp(100)))
-
-        sponsorsCard.addView(sponsorsInner)
-        container.addView(sponsorsCard)
-
-        val sponsorsListCard = createStyledCard()
-        val sponsorsListInner = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(16), dp(16), dp(16))
-        }
-        sponsorsListInner.addView(createSectionTitle(context.getString(R.string.settings_sponsors_list), R.drawable.favorite_24px, bottomPaddingDp = 4))
-        sponsorsListInner.addView(TextView(context).apply {
-            text = context.getString(R.string.settings_sponsors_list_description)
-            setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_BodyMedium)
-            setTextColor(onSurfaceColor)
-            setPadding(0, dp(4), 0, dp(12))
-        })
-
-        var hideSwitch: SwitchMaterial? = null
-        val hideSponsorsRow = createSettingSwitchRow(
-            title = context.getString(R.string.settings_sponsors_hide_switch_title),
-            description = "",
-            iconRes = R.drawable.settings_24px,
-            isCheckedValue = BrowserPreferences.shouldHideSponsors(context)
-        ) { isChecked ->
-            if (isChecked) {
-                MaterialAlertDialogBuilder(context)
-                    .setTitle(context.getString(R.string.settings_sponsors_hide_title))
-                    .setMessage(context.getString(R.string.settings_sponsors_hide_message))
-                    .setCancelable(false)
-                    .setPositiveButton(context.getString(R.string.settings_sponsors_hide_keep)) { dialog, _ ->
-                        hideSwitch?.isChecked = false
-                        dialog.dismiss()
-                    }
-                    .setNegativeButton(context.getString(R.string.settings_sponsors_hide_confirm)) { dialog, _ ->
-                        BrowserPreferences.setHideSponsors(context, true)
-                        callbacks.onSponsorsVisibilityChanged()
-                        dialog.dismiss()
-                    }
-                    .show()
-            } else {
-                BrowserPreferences.setHideSponsors(context, false)
-                callbacks.onSponsorsVisibilityChanged()
-            }
-        }
-        hideSwitch = hideSponsorsRow.getChildAt(2) as? SwitchMaterial
-        sponsorsListInner.addView(hideSponsorsRow)
-
-        sponsorsListCard.addView(sponsorsListInner)
-        container.addView(sponsorsListCard)
 
         val siteDataCard = createStyledCard()
         val siteDataInner = LinearLayout(context).apply {

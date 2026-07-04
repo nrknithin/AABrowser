@@ -59,11 +59,6 @@ class StartPageManager(
     private var loadedStartPageBackgroundBitmap: Bitmap? = null
     private var cachedStartPageGradientSignature: Int = 0
 
-    private val sponsorsManager = SponsorsManager(activity, binding, object : SponsorsManager.SponsorsCallbacks {
-        override fun loadUrlFromIntent(url: String) = callbacks.loadUrlFromIntent(url)
-        override fun resolveThemeColor(attrRes: Int) = callbacks.resolveThemeColor(attrRes)
-    })
-
     private val startPageAdapter: StartPageAdapter by lazy {
         StartPageAdapter(
             bookmarkManager = bookmarkManager,
@@ -204,7 +199,6 @@ class StartPageManager(
         refreshStartPageQuickLinks()
         refreshStartPageBackground()
         refreshStartPageResumeButton()
-        sponsorsManager.setupSponsorsSection()
         setupStartPageCardGlassBackground()
     }
 
@@ -216,18 +210,6 @@ class StartPageManager(
         val outlineColor = callbacks.resolveThemeColor(com.google.android.material.R.attr.colorOutline)
         binding.startPageCard.strokeColor = androidx.core.graphics.ColorUtils.setAlphaComponent(outlineColor, 80)
         binding.startPageCard.strokeWidth = (1.5f * activity.resources.displayMetrics.density).toInt()
-
-        binding.startPageSponsorsCard.setCardBackgroundColor(glassBg)
-        binding.startPageSponsorsCard.strokeColor = androidx.core.graphics.ColorUtils.setAlphaComponent(outlineColor, 80)
-        binding.startPageSponsorsCard.strokeWidth = (1.5f * activity.resources.displayMetrics.density).toInt()
-
-        binding.startPageSponsorsListCard.setCardBackgroundColor(glassBg)
-        binding.startPageSponsorsListCard.strokeColor = androidx.core.graphics.ColorUtils.setAlphaComponent(outlineColor, 80)
-        binding.startPageSponsorsListCard.strokeWidth = (1.5f * activity.resources.displayMetrics.density).toInt()
-
-        binding.startPageSponsorsHiddenPienCard.setCardBackgroundColor(glassBg)
-        binding.startPageSponsorsHiddenPienCard.strokeColor = androidx.core.graphics.ColorUtils.setAlphaComponent(outlineColor, 80)
-        binding.startPageSponsorsHiddenPienCard.strokeWidth = (1.5f * activity.resources.displayMetrics.density).toInt()
     }
 
     fun refreshStartPageBackground() {

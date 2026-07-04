@@ -141,9 +141,7 @@ class OverlayManager(
                 },
                 onClearStartPageBackground = { 
                     startPageManager.clearStartPageBackground() 
-                },
-                onSponsorsVisibilityChanged = {
-                    startPageManager.refreshStartPage()
+
                 }
             )
             

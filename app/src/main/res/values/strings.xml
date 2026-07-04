@@ -149,22 +149,6 @@
     <string name="settings_clear_cookies_success_title">Cookies and site data deleted</string>
     <string name="settings_clear_cookies_success_message">Stored cookies, local site data, and saved form data have been deleted from the browser.</string>
     
-    <string name="settings_sponsors">Sponsors</string>
-    <string name="settings_sponsors_description">If you find this app useful, please consider supporting the project through GitHub Sponsors. It really fuels my motivation to keep improving it!</string>
-    <string name="settings_sponsors_tab_github">GitHub Sponsors</string>
-    <string name="settings_sponsors_open_github_sponsors">Open Sponsors Page</string>
-    <string name="sponsors_copy">Copy</string>
-    <string name="sponsors_copied">Address copied to clipboard</string>
-
-    <string name="settings_sponsors_list">Sponsors</string>
-    <string name="settings_sponsors_list_description">A huge thank you to our amazing sponsors! Your support keeps this project running and upgrades my regular tea to premium Matcha or a bottomless pot of coffee! 🍵☕</string>
-    <string name="sponsor_message_from_developer">From kododake: %1$s</string>
-    <string name="settings_sponsors_hide_title">Hide Sponsors? 🥺</string>
-    <string name="settings_sponsors_hide_message">This app is developed and maintained by kododake and our amazing contributors. Sponsoring helps kododake buy premium Matcha or coffee to fuel AABrowser\'s engine! If you hide them, kododake might code slower... 😭🍵\n\nAre you sure you want to hide the sponsors list?</string>
-    <string name="settings_sponsors_hide_keep">Keep Visible 🥺</string>
-    <string name="settings_sponsors_hide_confirm">Hide Anyway 😭</string>
-    <string name="settings_sponsors_hide_switch_title">Hide sponsors list on start page</string>
-    
     <string name="settings_license">License</string>
     <string name="settings_license_description">This application and its source code are licensed under the GNU General Public License version 3 (GPLv3). If you incorporate this application or use any of its code, you must include clear attribution to the repository: https://github.com/kododake/AABrowser</string>
     <string name="license_view_full">View Full License</string>
