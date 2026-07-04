@@ -157,26 +157,8 @@ class MainActivitySetup(
             managers.uiManager.hideMenuOverlay()
         }
         
-        binding.buttonStartPageResume.setOnClickListener {
-            val resumeUrl = BrowserPreferences.getLastVisitedUrl(activity)
-            if (resumeUrl.isNullOrBlank()) {
-                val message = activity.getString(R.string.start_page_no_last_page)
-                Toast.makeText(activity, message, Toast.LENGTH_SHORT).show()
-            } else {
-                managers.navigationManager.loadUrlFromIntent(resumeUrl)
-            }
-        }
-        
-        binding.buttonStartPagePhotoOnly.setOnClickListener {
-            managers.startPageManager.isStartPagePhotoOnlyMode = !managers.startPageManager.isStartPagePhotoOnlyMode
-            managers.startPageManager.applyStartPagePhotoOnlyMode()
-        }
-        
         binding.startPageRoot.setOnClickListener {
-            if (managers.startPageManager.isStartPagePhotoOnlyMode) {
-                managers.startPageManager.isStartPagePhotoOnlyMode = false
-                managers.startPageManager.applyStartPagePhotoOnlyMode()
-            }
+            // Start page click handler
         }
     }
 }

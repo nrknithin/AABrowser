@@ -53,7 +53,6 @@ class StartPageManager(
     }
 
     var isShowingStartPage: Boolean = false
-    var isStartPagePhotoOnlyMode: Boolean = false
     
     private var loadedStartPageBackgroundUri: String? = null
     private var loadedStartPageBackgroundBitmap: Bitmap? = null
@@ -139,14 +138,12 @@ class StartPageManager(
         }
         
         isShowingStartPage = true
-        isStartPagePhotoOnlyMode = false
         binding.startPageRoot.visibility = View.VISIBLE
         binding.pageTitle.text = activity.getString(R.string.start_page_title)
         binding.addressEdit.setText("")
         
         callbacks.updateConnectionSecurityIcon(null)
         refreshStartPage()
-        applyStartPagePhotoOnlyMode()
         callbacks.updateNavigationButtons()
         callbacks.showMenuButtonTemporarily()
     }
@@ -157,8 +154,6 @@ class StartPageManager(
         }
         
         isShowingStartPage = false
-        isStartPagePhotoOnlyMode = false
-        applyStartPagePhotoOnlyMode()
         binding.startPageRoot.visibility = View.GONE
         
         binding.pageTitle.text = currentPageTitle.ifBlank {
@@ -180,25 +175,10 @@ class StartPageManager(
         bookmarkManager.refreshBookmarks()
     }
 
-    fun applyStartPagePhotoOnlyMode() {
-        val visibility = if (isStartPagePhotoOnlyMode) View.GONE else View.VISIBLE
-        binding.startPageScroll.visibility = visibility
-        binding.startPageDimOverlay.visibility = visibility
-        
-        binding.buttonStartPagePhotoOnly.text = activity.getString(
-            if (isStartPagePhotoOnlyMode) R.string.start_page_show_ui else R.string.start_page_photo_only
-        )
-
-        if (!isStartPagePhotoOnlyMode && isShowingStartPage) {
-            callbacks.showMenuButtonTemporarily()
-        }
-    }
-
     fun refreshStartPage() {
         setupRecyclerView()
         refreshStartPageQuickLinks()
         refreshStartPageBackground()
-        refreshStartPageResumeButton()
         setupStartPageCardGlassBackground()
     }
 
@@ -338,10 +318,6 @@ class StartPageManager(
             SlotItem(cleanUrl, hasIcon)
         }
         startPageAdapter.submitList(slots)
-    }
-
-    fun refreshStartPageResumeButton() {
-        binding.buttonStartPageResume.isVisible = !BrowserPreferences.getLastVisitedUrl(activity).isNullOrBlank()
     }
 
     fun handleStartPageBackgroundPicked(uri: Uri?) {
