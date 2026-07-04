@@ -183,13 +183,9 @@ class StartPageManager(
     }
 
     private fun setupStartPageCardGlassBackground() {
-        val cardBg = callbacks.resolveThemeColor(com.google.android.material.R.attr.colorSurfaceContainerLow)
-        val glassBg = androidx.core.graphics.ColorUtils.setAlphaComponent(cardBg, 120)
-        
-        binding.startPageCard.setCardBackgroundColor(glassBg)
-        val outlineColor = callbacks.resolveThemeColor(com.google.android.material.R.attr.colorOutline)
-        binding.startPageCard.strokeColor = androidx.core.graphics.ColorUtils.setAlphaComponent(outlineColor, 80)
-        binding.startPageCard.strokeWidth = (1.5f * activity.resources.displayMetrics.density).toInt()
+        binding.startPageCard.setCardBackgroundColor(android.graphics.Color.TRANSPARENT)
+        binding.startPageCard.strokeWidth = 0
+        binding.startPageCard.strokeColor = android.graphics.Color.TRANSPARENT
     }
 
     fun refreshStartPageBackground() {

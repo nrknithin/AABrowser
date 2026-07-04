@@ -58,7 +58,7 @@ object BrowserPreferences {
         "https://keepandroidopen.org"
     )
 
-    const val MAX_START_PAGE_SITES = 6
+    const val MAX_START_PAGE_SITES = 8
     const val MAX_OPEN_TABS = 8
     const val MIN_GLOBAL_SCALE_PERCENT = 40
     const val MAX_GLOBAL_SCALE_PERCENT = 200

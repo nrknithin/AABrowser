@@ -83,14 +83,14 @@
                             android:orientation="vertical"
                             android:clipChildren="false"
                             android:clipToPadding="false"
-                            android:padding="20dp">
+                            android:padding="0dp">
 
                             <androidx.recyclerview.widget.RecyclerView
                                 android:id="@+id/startPageQuickLinksContainer"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="0dp"
-                                android:padding="8dp"
+                                android:padding="0dp"
                                 android:clipToPadding="false"
                                 android:clipChildren="false"
                                 android:nestedScrollingEnabled="false" />
