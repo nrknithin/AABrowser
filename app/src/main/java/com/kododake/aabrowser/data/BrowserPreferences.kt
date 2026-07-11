@@ -51,11 +51,11 @@ object BrowserPreferences {
     private const val SEARCH_TEMPLATE = "https://www.google.com/search?q=%s"
 
     private val DEFAULT_BOOKMARKS = listOf(
-        "https://www.google.com",
-        "https://youtube.com",
-        "https://duckduckgo.com",
-        "https://weather.com",
-        "https://keepandroidopen.org"
+        "https://www.youtube.com",
+        "https://www.netflix.com",
+        "https://www.hotstar.com",
+        "https://www.primevideo.com",
+        "https://www.crunchyroll.com"
     )
 
     const val MAX_START_PAGE_SITES = 8

@@ -183,7 +183,6 @@ class MainActivity : AppCompatActivity() {
         setupBackPressHandling()
         
         permissionManager.ensureNotificationPermissionIfNeeded(REQUEST_CODE_POST_NOTIFICATIONS)
-        showFreeDroidWarnOnUpgradeMaterial()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -373,16 +372,8 @@ class MainActivity : AppCompatActivity() {
                     permissionManager.showCleartextNavigationDialog(uri, once, host, cancel)
                 }
             },
-            onError = { _, d ->
-                runOnUiThread {
-                    if (isDebugBuild && tab.id == tabManager.activeTabId) {
-                        Toast.makeText(
-                            this,
-                            d ?: getString(R.string.error_generic_message),
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                }
+            onError = { code, d ->
+                // Suppress network error toasts
             },
             onEnterFullscreen = { v, c ->
                 runOnUiThread {

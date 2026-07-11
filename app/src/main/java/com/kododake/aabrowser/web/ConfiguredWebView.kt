@@ -360,14 +360,19 @@ fun WebView.releaseCompletely() {
     destroy()
 }
 
-private fun WebView.applyBrowserIdentity(profile: UserAgentProfile, desktop: Boolean) {
+internal fun WebView.applyBrowserIdentity(
+    profile: UserAgentProfile,
+    desktopLayout: Boolean,
+    desktopUserAgent: Boolean = desktopLayout,
+    forceIpadUserAgent: Boolean = false
+) {
     setTag(R.id.webview_user_agent_profile_tag, profile.storageKey)
-    settings.userAgentString = buildUserAgent(profile, desktop)
-    settings.useWideViewPort = desktop
-    settings.loadWithOverviewMode = desktop
+    settings.userAgentString = if (forceIpadUserAgent) SAFARI_IPAD_UA else buildUserAgent(profile, desktopUserAgent)
+    settings.useWideViewPort = desktopLayout
+    settings.loadWithOverviewMode = desktopLayout
     
     val scalePercent = com.kododake.aabrowser.data.BrowserPreferences.getGlobalScalePercent(context)
-    if (desktop) {
+    if (desktopLayout) {
         setInitialScale(0)
         settings.textZoom = scalePercent
     } else {
@@ -375,7 +380,7 @@ private fun WebView.applyBrowserIdentity(profile: UserAgentProfile, desktop: Boo
         settings.textZoom = 100
     }
     
-    applyUserAgentMetadata(profile, desktop)
+    applyUserAgentMetadata(profile, desktopUserAgent)
 }
 
 private fun WebView.mobileInitialScalePercent(): Int {
@@ -460,3 +465,4 @@ private const val MOBILE_CHROME_UA = "Mozilla/5.0 (Linux; Android 10; K) AppleWe
 private const val WINDOWS_CHROME_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${CHROME_VERSION} Safari/537.36"
 private const val SAFARI_MAC_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
 private const val SAFARI_IOS_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+private const val SAFARI_IPAD_UA = "Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"

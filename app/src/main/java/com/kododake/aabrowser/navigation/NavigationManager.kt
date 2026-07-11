@@ -13,6 +13,7 @@ import com.kododake.aabrowser.permissions.PermissionManager
 import com.kododake.aabrowser.startpage.StartPageManager
 import com.kododake.aabrowser.tabs.TabManager
 import com.kododake.aabrowser.ui.BrowserUIManager
+import com.kododake.aabrowser.web.applyBrowserIdentity
 
 class NavigationManager(
     private val activity: AppCompatActivity,
@@ -73,6 +74,8 @@ class NavigationManager(
         if (uri == null) {
             return
         }
+        val scheme = uri.scheme?.lowercase()
+        val host = uri.host?.lowercase()
 
         val finishNavigation: (() -> Unit) -> Unit = { loadAction ->
             targetTab.currentUrl = navigable
@@ -90,6 +93,15 @@ class NavigationManager(
             BrowserPreferences.persistUrl(activity, navigable)
             tabManager.persistTabSession()
             callbacks.onHideStartPage()
+            
+            val isStreamingSite = host != null && (host.contains("hotstar.com") || host.contains("netflix.com"))
+            val baseDesktopMode = BrowserPreferences.shouldUseDesktopMode(activity)
+            val profile = BrowserPreferences.getUserAgentProfile(activity)
+            val desktopLayout = baseDesktopMode
+            val desktopUA = baseDesktopMode
+            val forceIpadUserAgent = isStreamingSite && !baseDesktopMode
+            targetWebView.applyBrowserIdentity(profile, desktopLayout, desktopUA, forceIpadUserAgent)
+
             loadAction()
             
             if (closeMenuAfterNavigate && binding.menuOverlay.isVisible) {
@@ -99,9 +111,6 @@ class NavigationManager(
                 binding.persistentAddressEdit.clearFocus()
             }
         }
-
-        val scheme = uri.scheme?.lowercase()
-        val host = uri.host?.lowercase()
         
         if (scheme == "http" && !BrowserPreferences.isHostAllowedCleartext(activity, host)) {
             permissionManager.showCleartextNavigationDialog(

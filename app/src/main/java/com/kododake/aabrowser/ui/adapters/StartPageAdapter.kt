@@ -23,6 +23,19 @@ class StartPageAdapter(
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SlotViewHolder {
         val binding = ItemStartPageSlotBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        
+        parent.post {
+            val layoutManager = (parent as RecyclerView).layoutManager as? androidx.recyclerview.widget.GridLayoutManager
+            val spanCount = layoutManager?.spanCount ?: 2
+            val rows = com.kododake.aabrowser.data.BrowserPreferences.MAX_START_PAGE_SITES / spanCount
+            val targetHeight = parent.measuredHeight / rows
+            
+            if (binding.root.layoutParams.height != targetHeight) {
+                binding.root.layoutParams.height = targetHeight
+                binding.root.requestLayout()
+            }
+        }
+        
         return SlotViewHolder(binding)
     }
 

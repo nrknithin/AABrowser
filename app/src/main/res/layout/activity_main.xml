@@ -50,59 +50,52 @@
                 android:background="?attr/colorSurface"
                 android:alpha="0.12" />
 
-            <androidx.core.widget.NestedScrollView
+            <LinearLayout
                 android:id="@+id/startPageScroll"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:fillViewport="true"
-                android:clipToPadding="false"
+                android:orientation="vertical"
                 android:padding="24dp">
 
-                <LinearLayout
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/startPageCard"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:gravity="center_horizontal">
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:layout_marginTop="24dp"
+                    app:cardCornerRadius="24dp"
+                    app:cardElevation="0dp"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    app:cardPreventCornerOverlap="false"
+                    app:cardUseCompatPadding="false"
+                    app:cardBackgroundColor="?attr/colorSurfaceContainerLow">
 
-                    <com.google.android.material.card.MaterialCardView
-                        android:id="@+id/startPageCard"
+                    <LinearLayout
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="24dp"
-                        app:cardCornerRadius="24dp"
-                        app:cardElevation="0dp"
+                        android:layout_height="match_parent"
+                        android:orientation="vertical"
                         android:clipChildren="false"
                         android:clipToPadding="false"
-                        app:cardPreventCornerOverlap="false"
-                        app:cardUseCompatPadding="false"
-                        app:cardBackgroundColor="?attr/colorSurfaceContainerLow">
+                        android:padding="0dp">
 
-                        <LinearLayout
+                        <androidx.recyclerview.widget.RecyclerView
+                            android:id="@+id/startPageQuickLinksContainer"
                             android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="vertical"
-                            android:clipChildren="false"
+                            android:layout_height="match_parent"
+                            android:layout_marginTop="0dp"
+                            android:padding="0dp"
                             android:clipToPadding="false"
-                            android:padding="0dp">
+                            android:clipChildren="false"
+                            android:nestedScrollingEnabled="false" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
 
-                            <androidx.recyclerview.widget.RecyclerView
-                                android:id="@+id/startPageQuickLinksContainer"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="0dp"
-                                android:padding="0dp"
-                                android:clipToPadding="false"
-                                android:clipChildren="false"
-                                android:nestedScrollingEnabled="false" />
-                        </LinearLayout>
-                    </com.google.android.material.card.MaterialCardView>
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="88dp"
-                        android:importantForAccessibility="no" />
-                </LinearLayout>
-            </androidx.core.widget.NestedScrollView>
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="88dp"
+                    android:importantForAccessibility="no" />
+            </LinearLayout>
         </FrameLayout>
 
         <FrameLayout
@@ -1277,8 +1270,9 @@
         android:layout_margin="16dp"
         android:contentDescription="@string/menu_open_description"
         app:srcCompat="@android:drawable/ic_menu_more"
-        app:tint="?attr/colorOnPrimary"
-        app:backgroundTint="?attr/colorPrimary"
-        app:elevation="6dp" />
+        app:tint="?attr/colorPrimary"
+        app:backgroundTint="@android:color/transparent"
+        app:elevation="0dp"
+        app:borderWidth="0dp" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
