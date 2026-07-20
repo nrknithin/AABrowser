@@ -17,7 +17,6 @@ import java.util.concurrent.TimeUnit
 object InnertubeClient {
 
     private const val INNERTUBE_KEY = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8"
-    private const val CLIENT_VERSION = "2.20240814.00.00"
     private const val WEB_UA =
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
             "(KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36"
@@ -26,18 +25,21 @@ object InnertubeClient {
         .readTimeout(30, TimeUnit.SECONDS)
         .build()
 
-    private fun context(): JSONObject = JSONObject().apply {
-        put("client", JSONObject().apply {
-            put("clientName", "WEB")
-            put("clientVersion", CLIENT_VERSION)
-            put("hl", "en")
-            put("gl", "US")
-        })
+    private fun clientJson(signedIn: Boolean): JSONObject = JSONObject().apply {
+        put("clientName", "WEB")
+        put("clientVersion", InnertubeSession.clientVersion())
+        put("hl", "en")
+        put("gl", "US")
+        // Only an anonymous session carries visitorData; when signed in the auth
+        // cookies define the session, and a foreign visitorData breaks the pull.
+        if (!signedIn) InnertubeSession.visitorData()?.let { put("visitorData", it) }
     }
 
     private fun post(endpoint: String, extra: JSONObject.() -> Unit = {}): JSONObject {
+        InnertubeSession.ensureLoaded()
+        val signedIn = YouTubeAuth.isSignedIn
         val body = JSONObject().apply {
-            put("context", JSONObject().put("client", context().getJSONObject("client")))
+            put("context", JSONObject().put("client", clientJson(signedIn)))
             extra()
         }.toString()
 
@@ -48,11 +50,12 @@ object InnertubeClient {
             .header("User-Agent", WEB_UA)
             .header("Content-Type", "application/json")
             .header("X-Youtube-Client-Name", "1")
-            .header("X-Youtube-Client-Version", CLIENT_VERSION)
+            .header("X-Youtube-Client-Version", InnertubeSession.clientVersion())
+
         val auth = YouTubeAuth.authHeaders(nowSeconds)
         if (auth.isEmpty()) {
-            // Anonymous: pre-accept the consent gate so the API returns data
-            // instead of a consent interstitial.
+            // Anonymous: visitor id + pre-accepted consent so the API returns data.
+            InnertubeSession.visitorData()?.let { builder.header("X-Goog-Visitor-Id", it) }
             builder.header("Cookie", "SOCS=CAISAiAD; CONSENT=YES+1")
         } else {
             auth.forEach { (name, values) -> values.forEach { builder.addHeader(name, it) } }

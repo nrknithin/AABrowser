@@ -8,88 +8,78 @@
     android:fitsSystemWindows="true">
 
     <!-- Persistent car-style navigation rail -->
+    <!-- Every rail item shares the height equally (weight=1): even spacing, and
+         it flexes to any head-unit height without clipping. -->
     <LinearLayout
         android:id="@+id/navRail"
         android:layout_width="72dp"
         android:layout_height="match_parent"
         android:orientation="vertical"
         android:gravity="center_horizontal"
-        android:paddingTop="8dp"
-        android:paddingBottom="8dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp"
         android:background="?attr/colorSurfaceContainerLow">
 
-        <!-- Nav items scroll if the screen is too short; Menu stays pinned below
-             so nothing ever clips regardless of head-unit height. -->
-        <androidx.core.widget.NestedScrollView
-            android:layout_width="match_parent"
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/railBack"
+            style="@style/Widget.Material3.Button.IconButton"
+            android:layout_width="56dp"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:fillViewport="true"
-            android:scrollbars="none">
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:contentDescription="@string/menu_back"
+            app:icon="@drawable/arrow_back_24px"
+            app:iconSize="28dp"
+            app:iconTint="?attr/colorOnSurfaceVariant" />
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:gravity="center_horizontal">
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/railHome"
+            style="@style/Widget.Material3.Button.IconButton"
+            android:layout_width="56dp"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:contentDescription="@string/rail_home"
+            app:icon="@drawable/home_24px"
+            app:iconSize="28dp"
+            app:iconTint="?attr/colorOnSurfaceVariant" />
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/railBack"
-                    style="@style/Widget.Material3.Button.IconButton"
-                    android:layout_width="56dp"
-                    android:layout_height="56dp"
-                    android:contentDescription="@string/menu_back"
-                    app:icon="@drawable/arrow_back_24px"
-                    app:iconSize="28dp"
-                    app:iconTint="?attr/colorOnSurfaceVariant" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/railSearch"
+            style="@style/Widget.Material3.Button.IconButton"
+            android:layout_width="56dp"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:contentDescription="@string/rail_search"
+            app:icon="@drawable/search_24px"
+            app:iconSize="28dp"
+            app:iconTint="?attr/colorOnSurfaceVariant" />
 
-                <com.google.android.material.divider.MaterialDivider
-                    android:layout_width="44dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:layout_marginBottom="8dp"
-                    app:dividerColor="?attr/colorOutlineVariant" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/railHome"
-                    style="@style/Widget.Material3.Button.IconButton"
-                    android:layout_width="56dp"
-                    android:layout_height="56dp"
-                    android:contentDescription="@string/rail_home"
-                    app:icon="@drawable/home_24px"
-                    app:iconSize="28dp"
-                    app:iconTint="?attr/colorOnSurfaceVariant" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/railSearch"
-                    style="@style/Widget.Material3.Button.IconButton"
-                    android:layout_width="56dp"
-                    android:layout_height="56dp"
-                    android:layout_marginTop="4dp"
-                    android:contentDescription="@string/rail_search"
-                    app:icon="@drawable/search_24px"
-                    app:iconSize="28dp"
-                    app:iconTint="?attr/colorOnSurfaceVariant" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/railLibrary"
-                    style="@style/Widget.Material3.Button.IconButton"
-                    android:layout_width="56dp"
-                    android:layout_height="56dp"
-                    android:layout_marginTop="4dp"
-                    android:contentDescription="@string/rail_library"
-                    app:icon="@drawable/library_24px"
-                    app:iconSize="28dp"
-                    app:iconTint="?attr/colorOnSurfaceVariant" />
-            </LinearLayout>
-        </androidx.core.widget.NestedScrollView>
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/railLibrary"
+            style="@style/Widget.Material3.Button.IconButton"
+            android:layout_width="56dp"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:contentDescription="@string/rail_library"
+            app:icon="@drawable/library_24px"
+            app:iconSize="28dp"
+            app:iconTint="?attr/colorOnSurfaceVariant" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/railMenu"
             style="@style/Widget.Material3.Button.IconButton"
             android:layout_width="56dp"
-            android:layout_height="56dp"
-            android:layout_marginTop="4dp"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
             android:contentDescription="@string/rail_menu"
             app:icon="@drawable/settings_24px"
             app:iconSize="28dp"

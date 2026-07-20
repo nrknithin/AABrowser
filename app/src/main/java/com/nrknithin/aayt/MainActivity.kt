@@ -14,6 +14,7 @@ import android.webkit.WebView
 import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.activity.addCallback
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.view.isVisible
@@ -46,6 +47,14 @@ class MainActivity : AppCompatActivity() {
 
     private var fullscreenView: View? = null
     private var fullscreenCallback: WebChromeClient.CustomViewCallback? = null
+
+    private val loginLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        harvestSessionCookies()
+        // Reload whatever section is showing now that we're (possibly) signed in.
+        showSection(Section.HOME)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         DynamicColors.applyToActivityIfAvailable(this)
@@ -113,7 +122,13 @@ class MainActivity : AppCompatActivity() {
         highlightRail(target)
 
         when (target) {
-            Section.HOME -> load(getString(R.string.empty_generic)) { YouTubeRepo.home() }
+            Section.HOME ->
+                if (YouTubeAuth.isSignedIn) {
+                    load(getString(R.string.empty_generic)) { YouTubeRepo.home() }
+                } else {
+                    adapter.submitList(emptyList())
+                    showEmpty(getString(R.string.empty_home_signed_out))
+                }
             Section.SUBSCRIPTIONS ->
                 if (YouTubeAuth.isSignedIn) {
                     load(getString(R.string.empty_subscriptions)) { YouTubeRepo.subscriptions() }
@@ -187,10 +202,25 @@ class MainActivity : AppCompatActivity() {
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun setupPlayer() {
+        CookieManager.getInstance().setAcceptCookie(true)
         with(binding.playerWeb) {
+            CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
             settings.mediaPlaybackRequiresUserGesture = false
+            // Real mobile watch page → the actual YouTube player (no embed
+            // restrictions, uses the signed-in session).
+            settings.userAgentString =
+                "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 " +
+                    "(KHTML, like Gecko) Chrome/149.0.0.0 Mobile Safari/537.36"
+            webViewClient = object : android.webkit.WebViewClient() {
+                override fun onPageFinished(view: WebView, url: String?) {
+                    super.onPageFinished(view, url)
+                    // Blow the player up to fill and hide the rest of the page.
+                    view.evaluateJavascript(PLAYER_SKIN_JS, null)
+                    view.postDelayed({ view.evaluateJavascript(PLAYER_SKIN_JS, null) }, 1500)
+                }
+            }
             webChromeClient = object : WebChromeClient() {
                 override fun onShowCustomView(view: View?, callback: CustomViewCallback?) {
                     enterWebFullscreen(view, callback)
@@ -216,9 +246,7 @@ class MainActivity : AppCompatActivity() {
         binding.infoChannel.text = item.channel
         binding.infoPanel.isVisible = false
         binding.playerContainer.isVisible = true
-        val embed = "https://www.youtube.com/embed/${item.id}" +
-            "?autoplay=1&fs=1&rel=0&modestbranding=1&playsinline=1"
-        binding.playerWeb.loadUrl(embed)
+        binding.playerWeb.loadUrl("https://m.youtube.com/watch?v=${item.id}")
     }
 
     private fun closePlayer() {
@@ -261,7 +289,7 @@ class MainActivity : AppCompatActivity() {
             .setTitle(if (signedIn) getString(R.string.menu_signed_in) else getString(R.string.app_name))
             .setItems(options) { _, which ->
                 when (which) {
-                    0 -> if (signedIn) signOut() else startActivity(Intent(this, LoginActivity::class.java))
+                    0 -> if (signedIn) signOut() else loginLauncher.launch(Intent(this, LoginActivity::class.java))
                     1 -> showSection(Section.SUBSCRIPTIONS)
                     2 -> cycleTheme()
                     3 -> showSection(section)
@@ -314,5 +342,26 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         binding.playerWeb.destroy()
         super.onDestroy()
+    }
+
+    companion object {
+        // Tidy the watch page (hide nav chrome) and start playback. We do NOT
+        // force a fullscreen overlay here — that caused a black screen. The real
+        // player's own fullscreen button drives onShowCustomView for true
+        // fullscreen, and being signed in it plays Premium (no ads).
+        // style.textContent is not a Trusted-Types sink, so this is CSP-safe.
+        private const val PLAYER_SKIN_JS = """
+(function(){
+  try{
+    var id='aayt-player-skin';
+    var s=document.getElementById(id)||document.createElement('style');
+    s.id=id;
+    s.textContent='ytm-pivot-bar-renderer,.pivot-bar,ytm-mobile-topbar-renderer,.mobile-topbar-renderer{display:none!important}';
+    (document.head||document.documentElement).appendChild(s);
+    var v=document.querySelector('video');
+    if(v){ v.muted=false; v.volume=1.0; if(v.paused){v.play().catch(function(){});} }
+  }catch(e){}
+})();
+"""
     }
 }

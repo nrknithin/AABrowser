@@ -17,6 +17,7 @@
     <string name="search_prompt">Type to search YouTube.</string>
 
     <string name="empty_generic">Nothing to show yet.</string>
+    <string name="empty_home_signed_out">Sign in from Settings (bottom of the rail) to see your YouTube feed. Search works without signing in.</string>
     <string name="empty_search">No results.</string>
     <string name="empty_subscriptions">No recent videos from your subscriptions.</string>
     <string name="empty_signed_out">Sign in from the menu to see your subscriptions.</string>
@@ -28,6 +29,7 @@
     <string name="player_close">Close player</string>
 
     <string name="login_done">Done</string>
+    <string name="login_hint">Sign in to your Google account — this window closes automatically when done.</string>
     <string name="menu_sign_in">Sign in to YouTube</string>
     <string name="menu_sign_out">Sign out</string>
     <string name="menu_signed_in">Signed in</string>

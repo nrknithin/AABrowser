@@ -2,7 +2,8 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true">
 
     <WebView
         android:id="@+id/loginWeb"
@@ -10,12 +11,28 @@
         android:layout_height="match_parent" />
 
     <com.google.android.material.button.MaterialButton
-        android:id="@+id/loginDone"
+        android:id="@+id/loginCancel"
+        style="@style/Widget.Material3.Button.IconButton.Filled.Tonal"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="top|start"
+        android:layout_margin="12dp"
+        android:contentDescription="@string/player_close"
+        app:icon="@drawable/ic_close"
+        app:iconSize="24dp" />
+
+    <TextView
+        android:id="@+id/loginHint"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom|end"
-        android:layout_margin="20dp"
-        android:text="@string/login_done"
-        app:icon="@drawable/info_24px" />
+        android:layout_gravity="top|center_horizontal"
+        android:layout_margin="12dp"
+        android:background="#CC000000"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:textColor="#FFFFFF"
+        android:textSize="13sp" />
 
 </FrameLayout>

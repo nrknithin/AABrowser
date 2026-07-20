@@ -13,7 +13,12 @@ import kotlinx.coroutines.withContext
 object YouTubeRepo {
 
     suspend fun home(): List<VideoItem> = withContext(Dispatchers.IO) {
-        InnertubeClient.homeFeed()
+        val personalized = runCatching { InnertubeClient.homeFeed() }.getOrDefault(emptyList())
+        // Fall back to the subscriptions feed if the recommended home doesn't
+        // parse — a signed-in user should never see an empty Home.
+        if (personalized.isNotEmpty()) personalized
+        else if (YouTubeAuth.isSignedIn) InnertubeClient.subscriptionsFeed()
+        else emptyList()
     }
 
     suspend fun search(query: String): List<VideoItem> = withContext(Dispatchers.IO) {
