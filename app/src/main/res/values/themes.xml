@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.AABrowser" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Theme.AAYT" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">@color/theme_primary</item>
         <item name="colorOnPrimary">@color/theme_on_primary</item>
         <item name="colorPrimaryContainer">@color/theme_primary_container</item>

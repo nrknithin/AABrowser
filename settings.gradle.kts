@@ -23,6 +23,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "AABrowser"
+rootProject.name = "AAYT"
 include(":app")
  

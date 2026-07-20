@@ -6,19 +6,18 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
 plugins {
     alias(libs.plugins.android.application)
-    id("com.google.android.gms.oss-licenses-plugin")
 }
 
 android {
-    namespace = "com.kododake.aabrowser"
-    compileSdk = 37
+    namespace = "com.nrknithin.aayt"
+    compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.kododake.aabrowser"
+        applicationId = "com.nrknithin.aayt"
         minSdk = 35
-        targetSdk = 37
-        versionCode = 8
-        versionName = "2.2"
+        targetSdk = 36
+        versionCode = 1
+        versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -69,7 +68,7 @@ android {
     androidComponents {
         onVariants { variant ->
             val vNameStr = android.defaultConfig.versionName ?: "unknown"
-            val appNameStr = "AABrowser"
+            val appNameStr = "AAYT"
             val isDebug = variant.buildType == "debug"
             val debugSuffixStr = if (isDebug) "_debug" else ""
 
@@ -106,17 +105,24 @@ dependencies {
     implementation(libs.androidx.activity.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.constraintlayout)
+    implementation(libs.androidx.recyclerview)
     implementation(libs.androidx.webkit)
     implementation(libs.google.material)
+    implementation(libs.coil)
     implementation(libs.androidx.car.app)
-    implementation(libs.zxing.core)
+    implementation(libs.kotlinx.coroutines.android)
 
+    // YouTube data extraction (NewPipe) + native playback (Media3/ExoPlayer)
+    implementation(libs.newpipe.extractor)
     implementation(libs.okhttp)
-    implementation(libs.kotlinx.serialization.json)
-    implementation(libs.google.oss.licenses)
-    implementation("com.github.woheller69:FreeDroidWarn:V1.+")
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.exoplayer.dash)
+    implementation(libs.androidx.media3.exoplayer.hls)
+    implementation(libs.androidx.media3.ui)
 
     testImplementation(libs.junit)
+    testImplementation(libs.newpipe.extractor)
+    testImplementation(libs.okhttp)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 }
