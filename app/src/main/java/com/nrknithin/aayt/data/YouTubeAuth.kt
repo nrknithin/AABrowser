@@ -8,12 +8,15 @@ import java.security.MessageDigest
  *
  * The amalgam: the user signs in through the WebView (the only place Google
  * allows it), we read the resulting cookies from Android's CookieManager, and
- * [NewPipeDownloader] attaches them — plus a per-request SAPISIDHASH — to every
- * extractor request so the responses reflect the signed-in account.
+ * [NewPipeDownloader]/[InnertubeClient] attach them — plus per-request SAPISID
+ * hashes — to every request so responses reflect the signed-in account.
  *
- * SAPISIDHASH scheme (as used by the YouTube/Google web client):
- *   hash = SHA1("<unixSeconds> <SAPISID> <origin>")
- *   Authorization: SAPISIDHASH <unixSeconds>_<hash>
+ * Google's web client authorizes with up to three hashes derived from whichever
+ * of SAPISID / __Secure-1PAPISID / __Secure-3PAPISID are present:
+ *   hash = SHA1("<unixSeconds> <cookieValue> <origin>")
+ *   Authorization: SAPISIDHASH <s>_<h> SAPISID1PHASH <s>_<h1> SAPISID3PHASH <s>_<h3>
+ * Sending all available variants is what makes the pull authenticate reliably —
+ * hashing only SAPISID fails when the login set only the __Secure-*PAPISID form.
  */
 object YouTubeAuth {
 
@@ -22,11 +25,20 @@ object YouTubeAuth {
     @Volatile
     private var cookieHeader: String? = null
 
+    // (authScheme, cookieValue) pairs for each *APISID variant that is present.
     @Volatile
-    private var sapisid: String? = null
+    private var apiSids: List<Pair<String, String>> = emptyList()
 
     val isSignedIn: Boolean
-        get() = !cookieHeader.isNullOrBlank() && !sapisid.isNullOrBlank()
+        get() = !cookieHeader.isNullOrBlank() && apiSids.isNotEmpty()
+
+    fun debugStatus(): String =
+        "signedIn=$isSignedIn · sids=${apiSids.map { it.first }} · cookieChars=${cookieHeader?.length ?: 0}"
+
+    /** Cookie names only (no values) for diagnostics. */
+    fun cookieNames(): List<String> =
+        cookieHeader?.split(';')?.mapNotNull { it.trim().substringBefore('=').takeIf(String::isNotBlank) }
+            ?: emptyList()
 
     /** Called after WebView login with CookieManager.getCookie("https://www.youtube.com"). */
     fun updateFromCookieString(rawCookies: String?) {
@@ -35,25 +47,30 @@ object YouTubeAuth {
             return
         }
         cookieHeader = rawCookies
-        sapisid = parseCookie(rawCookies, "SAPISID")
-            ?: parseCookie(rawCookies, "__Secure-3PAPISID")
+        apiSids = buildList {
+            parseCookie(rawCookies, "SAPISID")?.let { add("SAPISIDHASH" to it) }
+            parseCookie(rawCookies, "__Secure-1PAPISID")?.let { add("SAPISID1PHASH" to it) }
+            parseCookie(rawCookies, "__Secure-3PAPISID")?.let { add("SAPISID3PHASH" to it) }
+        }
     }
 
     fun clear() {
         cookieHeader = null
-        sapisid = null
+        apiSids = emptyList()
     }
 
     /** Auth headers for an Innertube request, or empty if not signed in. */
     fun authHeaders(nowSeconds: Long): Map<String, List<String>> {
         val cookies = cookieHeader
-        val sid = sapisid
-        if (cookies.isNullOrBlank() || sid.isNullOrBlank()) return emptyMap()
+        val sids = apiSids
+        if (cookies.isNullOrBlank() || sids.isEmpty()) return emptyMap()
 
-        val hash = sha1("$nowSeconds $sid $ORIGIN")
+        val authorization = sids.joinToString(" ") { (scheme, value) ->
+            "$scheme ${nowSeconds}_${sha1("$nowSeconds $value $ORIGIN")}"
+        }
         return mapOf(
             "Cookie" to listOf(cookies),
-            "Authorization" to listOf("SAPISIDHASH ${nowSeconds}_$hash"),
+            "Authorization" to listOf(authorization),
             "X-Origin" to listOf(ORIGIN),
             "Origin" to listOf(ORIGIN),
             "X-Goog-AuthUser" to listOf("0"),

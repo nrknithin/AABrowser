@@ -60,15 +60,15 @@
             app:iconTint="?attr/colorOnSurfaceVariant" />
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/railLibrary"
+            android:id="@+id/railSubscriptions"
             style="@style/Widget.Material3.Button.IconButton"
             android:layout_width="56dp"
             android:layout_height="0dp"
             android:layout_weight="1"
             android:insetTop="0dp"
             android:insetBottom="0dp"
-            android:contentDescription="@string/rail_library"
-            app:icon="@drawable/library_24px"
+            android:contentDescription="@string/rail_subscriptions"
+            app:icon="@drawable/subscriptions_24px"
             app:iconSize="28dp"
             app:iconTint="?attr/colorOnSurfaceVariant" />
 
@@ -173,6 +173,12 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent" />
 
+            <!-- Transparent tap layer (just above the video) to toggle controls. -->
+            <View
+                android:id="@+id/playerTapCatcher"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/playerInfo"
                 style="@style/Widget.Material3.Button.IconButton.Filled.Tonal"
@@ -230,6 +236,64 @@
                         android:textColor="?attr/colorOnSurfaceVariant" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
+
+            <!-- Custom car controls. Toggled by tapping the video. -->
+            <LinearLayout
+                android:id="@+id/playerControls"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|center_horizontal"
+                android:layout_marginBottom="28dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/player_controls_bg"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="6dp"
+                android:paddingBottom="6dp">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/playerRewind"
+                    style="@style/Widget.Material3.Button.IconButton"
+                    android:layout_width="60dp"
+                    android:layout_height="60dp"
+                    android:contentDescription="@string/player_rewind"
+                    app:icon="@drawable/fast_rewind_24px"
+                    app:iconSize="32dp"
+                    app:iconTint="#FFFFFF" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/playerPlayPause"
+                    style="@style/Widget.Material3.Button.IconButton.Filled"
+                    android:layout_width="68dp"
+                    android:layout_height="68dp"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginEnd="8dp"
+                    android:contentDescription="@string/player_play_pause"
+                    app:icon="@drawable/pause_24px"
+                    app:iconSize="36dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/playerForward"
+                    style="@style/Widget.Material3.Button.IconButton"
+                    android:layout_width="60dp"
+                    android:layout_height="60dp"
+                    android:contentDescription="@string/player_forward"
+                    app:icon="@drawable/fast_forward_24px"
+                    app:iconSize="32dp"
+                    app:iconTint="#FFFFFF" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/playerNext"
+                    style="@style/Widget.Material3.Button.IconButton"
+                    android:layout_width="60dp"
+                    android:layout_height="60dp"
+                    android:layout_marginStart="8dp"
+                    android:contentDescription="@string/player_next"
+                    app:icon="@drawable/skip_next_24px"
+                    app:iconSize="32dp"
+                    app:iconTint="#FFFFFF" />
+            </LinearLayout>
         </FrameLayout>
     </FrameLayout>
 </LinearLayout>

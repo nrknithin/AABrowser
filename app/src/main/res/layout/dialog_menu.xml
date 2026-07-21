@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <!-- Header: AAYT title with a small reload immediately to its right -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="4dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/app_name"
+            android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
+            android:textStyle="bold"
+            android:textColor="?attr/colorOnSurface" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/menuBtnRefresh"
+            style="@style/Widget.Material3.Button.IconButton"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="8dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:padding="0dp"
+            android:minWidth="0dp"
+            android:contentDescription="@string/menu_refresh"
+            app:icon="@drawable/refresh_24px"
+            app:iconSize="20dp"
+            app:iconTint="?attr/colorOnSurfaceVariant" />
+    </LinearLayout>
+
+    <GridLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:columnCount="3"
+        android:padding="12dp">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/menuBtnAuth"
+            style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:layout_margin="6dp"
+            android:paddingTop="14dp"
+            android:paddingBottom="14dp"
+            android:text="@string/menu_profile"
+            android:textSize="12sp"
+            app:icon="@drawable/account_circle_24px"
+            app:iconGravity="top"
+            app:iconSize="26dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/menuBtnLibrary"
+            style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:layout_margin="6dp"
+            android:paddingTop="14dp"
+            android:paddingBottom="14dp"
+            android:text="@string/section_library"
+            android:textSize="12sp"
+            app:icon="@drawable/library_24px"
+            app:iconGravity="top"
+            app:iconSize="26dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/menuBtnTheme"
+            style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:layout_margin="6dp"
+            android:paddingTop="14dp"
+            android:paddingBottom="14dp"
+            android:text="@string/menu_theme"
+            android:textSize="12sp"
+            app:icon="@drawable/palette_24px"
+            app:iconGravity="top"
+            app:iconSize="26dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/menuBtnSignOut"
+            style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:layout_margin="6dp"
+            android:paddingTop="14dp"
+            android:paddingBottom="14dp"
+            android:text="@string/menu_sign_out"
+            android:textSize="12sp"
+            app:icon="@drawable/ic_close"
+            app:iconGravity="top"
+            app:iconSize="26dp" />
+
+    </GridLayout>
+
+</LinearLayout>

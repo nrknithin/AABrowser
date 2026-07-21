@@ -42,11 +42,20 @@ class YouTubeAuthTest {
     }
 
     @Test
-    fun fallsBackToSecure3pApisid() {
+    fun usesSecure3pApisidHashWhenOnlyThatIsPresent() {
         YouTubeAuth.updateFromCookieString("HSID=x; __Secure-3PAPISID=SECURESID")
         assertTrue(YouTubeAuth.isSignedIn)
         val headers = YouTubeAuth.authHeaders(42L)
-        assertEquals(listOf("SAPISIDHASH 42_${sha1("42 SECURESID https://www.youtube.com")}"), headers["Authorization"])
+        assertEquals(listOf("SAPISID3PHASH 42_${sha1("42 SECURESID https://www.youtube.com")}"), headers["Authorization"])
+    }
+
+    @Test
+    fun sendsAllApiSidHashVariantsWhenPresent() {
+        YouTubeAuth.updateFromCookieString("SAPISID=A; __Secure-1PAPISID=B; __Secure-3PAPISID=C")
+        val auth = YouTubeAuth.authHeaders(10L).getValue("Authorization").first()
+        assertTrue(auth.contains("SAPISIDHASH 10_${sha1("10 A https://www.youtube.com")}"))
+        assertTrue(auth.contains("SAPISID1PHASH 10_${sha1("10 B https://www.youtube.com")}"))
+        assertTrue(auth.contains("SAPISID3PHASH 10_${sha1("10 C https://www.youtube.com")}"))
     }
 
     @Test

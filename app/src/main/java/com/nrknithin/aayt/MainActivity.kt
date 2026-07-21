@@ -45,8 +45,19 @@ class MainActivity : AppCompatActivity() {
     private val adapter = VideoAdapter(::openVideo)
     private var section = Section.HOME
 
+    // Pagination state for the current feed.
+    private val items = mutableListOf<VideoItem>()
+    private var continuation: String? = null
+    private var loadingMore = false
+    private var loadGeneration = 0
+
     private var fullscreenView: View? = null
     private var fullscreenCallback: WebChromeClient.CustomViewCallback? = null
+
+    private var playingVideoId: String? = null
+    private var controlsVisible = true
+    private val hideControlsRunnable = Runnable { setControlsVisible(false) }
+    private val controlsHandler = android.os.Handler(android.os.Looper.getMainLooper())
 
     private val loginLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -81,11 +92,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun harvestSessionCookies() {
-        val cm = CookieManager.getInstance()
-        val yt = cm.getCookie("https://www.youtube.com").orEmpty()
-        val google = cm.getCookie("https://www.google.com").orEmpty()
-        val merged = listOf(yt, google).filter { it.isNotBlank() }.joinToString("; ")
-        YouTubeAuth.updateFromCookieString(merged)
+        // Only youtube.com cookies. Merging google.com duplicates SID/SAPISID/
+        // __Secure-3PSID with different values, which YouTube rejects as
+        // logged-out. The youtube.com set already carries the full auth cookies.
+        val yt = CookieManager.getInstance().getCookie("https://www.youtube.com").orEmpty()
+        YouTubeAuth.updateFromCookieString(yt)
     }
 
     private fun setupGrid() {
@@ -93,13 +104,20 @@ class MainActivity : AppCompatActivity() {
         val span = (widthDp / 210).coerceAtLeast(2)
         binding.videoGrid.layoutManager = GridLayoutManager(this, span)
         binding.videoGrid.adapter = adapter
+        binding.videoGrid.addOnScrollListener(object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
+            override fun onScrolled(rv: androidx.recyclerview.widget.RecyclerView, dx: Int, dy: Int) {
+                if (dy <= 0) return
+                val lm = rv.layoutManager as GridLayoutManager
+                if (lm.findLastVisibleItemPosition() >= lm.itemCount - 6) loadMore()
+            }
+        })
     }
 
     private fun setupRail() {
         binding.railMenu.setOnClickListener { showMenu() }
         binding.railHome.setOnClickListener { showSection(Section.HOME) }
         binding.railSearch.setOnClickListener { showSection(Section.SEARCH) }
-        binding.railLibrary.setOnClickListener { showSection(Section.LIBRARY) }
+        binding.railSubscriptions.setOnClickListener { showSection(Section.SUBSCRIPTIONS) }
         binding.railBack.setOnClickListener { handleBack() }
     }
 
@@ -126,22 +144,22 @@ class MainActivity : AppCompatActivity() {
                 if (YouTubeAuth.isSignedIn) {
                     load(getString(R.string.empty_generic)) { YouTubeRepo.home() }
                 } else {
-                    adapter.submitList(emptyList())
+                    clearFeed()
                     showEmpty(getString(R.string.empty_home_signed_out))
                 }
             Section.SUBSCRIPTIONS ->
                 if (YouTubeAuth.isSignedIn) {
                     load(getString(R.string.empty_subscriptions)) { YouTubeRepo.subscriptions() }
                 } else {
-                    adapter.submitList(emptyList())
+                    clearFeed()
                     showEmpty(getString(R.string.empty_signed_out))
                 }
             Section.LIBRARY -> {
-                adapter.submitList(emptyList())
+                clearFeed()
                 showEmpty(getString(R.string.library_soon))
             }
             Section.SEARCH -> {
-                adapter.submitList(emptyList())
+                clearFeed()
                 showEmpty(getString(R.string.search_prompt))
                 binding.searchInput.requestFocus()
                 showKeyboard()
@@ -154,15 +172,31 @@ class MainActivity : AppCompatActivity() {
         load(getString(R.string.empty_search)) { YouTubeRepo.search(query) }
     }
 
-    private fun load(emptyMsg: String, fetch: suspend () -> List<VideoItem>) {
+    private fun clearFeed() {
+        loadGeneration++
+        items.clear()
+        continuation = null
+        loadingMore = false
+        adapter.submitList(emptyList())
+    }
+
+    private fun load(emptyMsg: String, fetch: suspend () -> com.nrknithin.aayt.data.InnertubeClient.FeedPage) {
+        val gen = ++loadGeneration
+        items.clear()
+        continuation = null
+        loadingMore = false
+        adapter.submitList(emptyList())
         binding.loading.isVisible = true
         binding.emptyState.isVisible = false
         binding.videoGrid.isVisible = false
         lifecycleScope.launch {
             val result = runCatching { fetch() }
+            if (gen != loadGeneration) return@launch
             binding.loading.isVisible = false
-            result.onSuccess { items ->
-                adapter.submitList(items)
+            result.onSuccess { page ->
+                items.addAll(page.items)
+                continuation = page.continuation
+                adapter.submitList(items.toList())
                 if (items.isEmpty()) showEmpty(emptyMsg) else {
                     binding.videoGrid.isVisible = true
                     binding.videoGrid.scrollToPosition(0)
@@ -170,6 +204,23 @@ class MainActivity : AppCompatActivity() {
             }.onFailure {
                 showEmpty(getString(R.string.load_error, it.message ?: "unknown"))
             }
+        }
+    }
+
+    private fun loadMore() {
+        val token = continuation ?: return
+        if (loadingMore) return
+        loadingMore = true
+        val gen = loadGeneration
+        lifecycleScope.launch {
+            val result = runCatching { YouTubeRepo.more(token) }
+            if (gen != loadGeneration) return@launch
+            result.onSuccess { page ->
+                items.addAll(page.items)
+                continuation = page.continuation
+                adapter.submitList(items.toList())
+            }
+            loadingMore = false
         }
     }
 
@@ -183,7 +234,7 @@ class MainActivity : AppCompatActivity() {
         val map = mapOf(
             Section.HOME to binding.railHome,
             Section.SEARCH to binding.railSearch,
-            Section.LIBRARY to binding.railLibrary
+            Section.SUBSCRIPTIONS to binding.railSubscriptions
         )
         val active = resolveColor(androidx.appcompat.R.attr.colorPrimary)
         val inactive = resolveColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
@@ -235,6 +286,11 @@ class MainActivity : AppCompatActivity() {
         binding.playerInfo.setOnClickListener {
             binding.infoPanel.isVisible = !binding.infoPanel.isVisible
         }
+        binding.playerTapCatcher.setOnClickListener { toggleControls() }
+        binding.playerRewind.setOnClickListener { seek(-10); nudgeControls() }
+        binding.playerForward.setOnClickListener { seek(10); nudgeControls() }
+        binding.playerNext.setOnClickListener { playNext() }
+        binding.playerPlayPause.setOnClickListener { togglePlayPause(); nudgeControls() }
     }
 
     private fun openVideo(item: VideoItem) {
@@ -242,18 +298,71 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, R.string.video_unavailable, Toast.LENGTH_SHORT).show()
             return
         }
+        playingVideoId = item.id
         binding.infoTitle.text = item.title
         binding.infoChannel.text = item.channel
         binding.infoPanel.isVisible = false
         binding.playerContainer.isVisible = true
+        binding.playerPlayPause.setIconResource(R.drawable.pause_24px)
+        setControlsVisible(true)
         binding.playerWeb.loadUrl("https://m.youtube.com/watch?v=${item.id}")
     }
 
     private fun closePlayer() {
         exitWebFullscreen()
+        controlsHandler.removeCallbacks(hideControlsRunnable)
         binding.playerWeb.loadUrl("about:blank")
         binding.playerContainer.isVisible = false
         binding.infoPanel.isVisible = false
+        playingVideoId = null
+    }
+
+    private fun seek(deltaSeconds: Int) {
+        binding.playerWeb.evaluateJavascript(
+            "(function(){var v=document.querySelector('video');" +
+                "if(v)v.currentTime=Math.max(0,v.currentTime+($deltaSeconds));})();",
+            null
+        )
+    }
+
+    private fun togglePlayPause() {
+        binding.playerWeb.evaluateJavascript(
+            "(function(){var v=document.querySelector('video');if(!v)return 'none';" +
+                "if(v.paused){v.play();return 'playing';}else{v.pause();return 'paused';}})();"
+        ) { result ->
+            val playing = result?.contains("playing") == true
+            binding.playerPlayPause.setIconResource(
+                if (playing) R.drawable.pause_24px else R.drawable.play_arrow_24px
+            )
+        }
+    }
+
+    private fun playNext() {
+        val current = playingVideoId ?: return
+        val idx = items.indexOfFirst { it.id == current }
+        val next = items.getOrNull(idx + 1)
+        if (next != null) {
+            openVideo(next)
+        } else {
+            Toast.makeText(this, R.string.player_no_next, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun toggleControls() = setControlsVisible(!controlsVisible)
+
+    private fun setControlsVisible(visible: Boolean) {
+        controlsVisible = visible
+        binding.playerControls.isVisible = visible
+        binding.playerClose.isVisible = visible
+        binding.playerInfo.isVisible = visible
+        if (!visible) binding.infoPanel.isVisible = false
+        controlsHandler.removeCallbacks(hideControlsRunnable)
+        if (visible) controlsHandler.postDelayed(hideControlsRunnable, 4000)
+    }
+
+    private fun nudgeControls() {
+        controlsHandler.removeCallbacks(hideControlsRunnable)
+        controlsHandler.postDelayed(hideControlsRunnable, 4000)
     }
 
     private fun enterWebFullscreen(view: View?, callback: WebChromeClient.CustomViewCallback?) {
@@ -278,24 +387,30 @@ class MainActivity : AppCompatActivity() {
 
     private fun showMenu() {
         val signedIn = YouTubeAuth.isSignedIn
-        val authLabel = if (signedIn) getString(R.string.menu_sign_out) else getString(R.string.menu_sign_in)
-        val options = arrayOf(
-            authLabel,
-            getString(R.string.section_subscriptions),
-            getString(R.string.menu_theme),
-            getString(R.string.menu_refresh)
-        )
-        MaterialAlertDialogBuilder(this)
-            .setTitle(if (signedIn) getString(R.string.menu_signed_in) else getString(R.string.app_name))
-            .setItems(options) { _, which ->
-                when (which) {
-                    0 -> if (signedIn) signOut() else loginLauncher.launch(Intent(this, LoginActivity::class.java))
-                    1 -> showSection(Section.SUBSCRIPTIONS)
-                    2 -> cycleTheme()
-                    3 -> showSection(section)
-                }
+        val view = layoutInflater.inflate(R.layout.dialog_menu, null)
+        val dialog = MaterialAlertDialogBuilder(this).setView(view).create()
+
+        fun btn(id: Int) = view.findViewById<com.google.android.material.button.MaterialButton>(id)
+
+        // First tile: Profile (opens the WebView profile) when signed in, else Sign in.
+        btn(R.id.menuBtnAuth).apply {
+            text = getString(if (signedIn) R.string.menu_profile else R.string.menu_sign_in)
+            setOnClickListener {
+                dialog.dismiss()
+                val intent = Intent(this@MainActivity, LoginActivity::class.java)
+                if (signedIn) intent.putExtra(LoginActivity.EXTRA_PROFILE, true)
+                loginLauncher.launch(intent)
             }
-            .show()
+        }
+        btn(R.id.menuBtnLibrary).setOnClickListener { dialog.dismiss(); showSection(Section.LIBRARY) }
+        btn(R.id.menuBtnTheme).setOnClickListener { dialog.dismiss(); cycleTheme() }
+        btn(R.id.menuBtnRefresh).setOnClickListener { dialog.dismiss(); showSection(section) }
+        // Sign out: last tile, only when signed in.
+        btn(R.id.menuBtnSignOut).apply {
+            isVisible = signedIn
+            setOnClickListener { dialog.dismiss(); signOut() }
+        }
+        dialog.show()
     }
 
     private fun signOut() {
@@ -356,7 +471,15 @@ class MainActivity : AppCompatActivity() {
     var id='aayt-player-skin';
     var s=document.getElementById(id)||document.createElement('style');
     s.id=id;
-    s.textContent='ytm-pivot-bar-renderer,.pivot-bar,ytm-mobile-topbar-renderer,.mobile-topbar-renderer{display:none!important}';
+    s.textContent=
+      'html,body{background:#000!important;margin:0!important;overflow:hidden!important;height:100%!important}'+
+      /* pull the player element out to fill the screen */
+      '#player,#movie_player,.html5-video-player,ytm-watch,#player-container-id{position:fixed!important;top:0!important;left:0!important;right:0!important;bottom:0!important;width:100vw!important;height:100vh!important;z-index:2147483000!important;background:#000!important;margin:0!important}'+
+      '.html5-main-video,video{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;object-fit:contain!important;background:#000!important;z-index:2147483000!important}'+
+      /* hide YouTube's own controls/gradients — we use native controls */
+      '.ytp-chrome-bottom,.ytp-chrome-top,.ytp-gradient-bottom,.ytp-gradient-top,.player-controls-background,.ytp-cued-thumbnail-overlay,.ytm-player-control-overlay,.player-controls,.ytp-spinner{display:none!important}'+
+      /* hide everything below the player (details, comments, related) */
+      'ytm-item-section-renderer,ytm-comment-section-renderer,#comments,.slim-video-metadata-section,ytm-single-column-watch-next-results-renderer,.related-chips-slot-wrapper{display:none!important}';
     (document.head||document.documentElement).appendChild(s);
     var v=document.querySelector('video');
     if(v){ v.muted=false; v.volume=1.0; if(v.paused){v.play().catch(function(){});} }

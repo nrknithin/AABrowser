@@ -68,22 +68,58 @@ object InnertubeClient {
         }
     }
 
+    /** A page of results plus the token to fetch the next page (null if none). */
+    data class FeedPage(val items: List<VideoItem>, val continuation: String?)
+
+    private fun page(json: JSONObject) = FeedPage(collectVideos(json), findContinuation(json))
+
     /** The home feed — personalized when authenticated, popular otherwise. */
-    fun homeFeed(): List<VideoItem> = post("browse") { put("browseId", "FEwhat_to_watch") }
-        .let { collectVideos(it) }
+    fun homeFeed(): FeedPage = page(post("browse") { put("browseId", "FEwhat_to_watch") })
 
     /** Search results (videos only). */
-    fun search(query: String): List<VideoItem> = post("search") { put("query", query) }
-        .let { collectVideos(it) }
+    fun search(query: String): FeedPage = page(post("search") { put("query", query) })
 
     /** Recent videos from the account's subscriptions (requires sign-in). */
-    fun subscriptionsFeed(): List<VideoItem> = post("browse") { put("browseId", "FEsubscriptions") }
-        .let { collectVideos(it) }
+    fun subscriptionsFeed(): FeedPage = page(post("browse") { put("browseId", "FEsubscriptions") })
+
+    /** Next page for any feed, via a continuation token. */
+    fun continuation(token: String): FeedPage = page(post("browse") { put("continuation", token) })
+
+    private fun findContinuation(root: JSONObject): String? {
+        var token: String? = null
+        walk(root) { obj ->
+            obj.optJSONObject("continuationItemRenderer")
+                ?.optJSONObject("continuationEndpoint")
+                ?.optJSONObject("continuationCommand")
+                ?.optString("token")
+                ?.takeIf { it.isNotBlank() }
+                ?.let { token = it }
+        }
+        return token
+    }
 
     /** The signed-in account's display name, or null if signed out. */
     fun accountName(): String? {
         val json = runCatching { post("account/account_menu") }.getOrNull() ?: return null
         return findAccountName(json)
+    }
+
+    /** One-line summary of a browse response for on-device diagnostics. */
+    fun diagnose(browseId: String): String = try {
+        val json = post("browse") { put("browseId", browseId) }
+        val s = json.toString()
+        fun c(k: String) = s.split(k).size - 1
+        val loggedOut = when {
+            s.contains("\"loggedOut\":false") -> "false"
+            s.contains("\"loggedOut\":true") -> "true"
+            else -> "?"
+        }
+        android.util.Log.i("AAYTDiag", "[$browseId] loggedOut=$loggedOut head=${s.take(600)}")
+        "size=${s.length} loggedOut=$loggedOut video=${c("\"videoRenderer\"")} " +
+            "lockup=${c("\"lockupViewModel\"")} rich=${c("\"richItemRenderer\"")} " +
+            "parsed=${collectVideos(json).size}"
+    } catch (e: Exception) {
+        "ERROR ${e.message}"
     }
 
     // --- parsing ---------------------------------------------------------

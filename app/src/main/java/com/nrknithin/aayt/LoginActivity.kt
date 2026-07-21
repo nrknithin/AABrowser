@@ -19,6 +19,7 @@ class LoginActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityLoginBinding
     private var finished = false
+    private val profileMode by lazy { intent.getBooleanExtra(EXTRA_PROFILE, false) }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -42,27 +43,28 @@ class LoginActivity : AppCompatActivity() {
 
                 override fun onPageFinished(view: WebView, url: String?) {
                     super.onPageFinished(view, url)
-                    // Once the flow lands back on YouTube with a session, we're done.
+                    // In profile mode we stay open so the user can view/manage
+                    // their account; otherwise auto-close once a session appears.
+                    if (profileMode) return
                     val host = runCatching { android.net.Uri.parse(url).host }.getOrNull().orEmpty()
                     if (host.endsWith("youtube.com") && hasSession()) finishWithHarvest()
                 }
             }
-            // Google blocks sign-in on accounts.google.com inside a WebView
-            // ("browser not secure"), so we go to YouTube's own profile/account
-            // page which offers sign-in directly within the allowed flow.
-            loadUrl("https://m.youtube.com/account")
+            // The Library hub for both: signed in it shows the profile/library;
+            // signed out YouTube redirects it to its own sign-in flow (which works
+            // in a WebView, unlike accounts.google.com directly).
+            loadUrl("https://m.youtube.com/feed/library")
         }
 
-        binding.loginHint.text = getString(R.string.login_hint)
+        binding.loginHint.text =
+            getString(if (profileMode) R.string.profile_hint else R.string.login_hint)
 
         // Fallback cancel, kept clear of the system nav bar.
         binding.loginCancel.setOnClickListener { finish() }
     }
 
     private fun hasSession(): Boolean {
-        val cm = CookieManager.getInstance()
-        val cookies = cm.getCookie("https://www.youtube.com").orEmpty() +
-            cm.getCookie("https://www.google.com").orEmpty()
+        val cookies = CookieManager.getInstance().getCookie("https://www.youtube.com").orEmpty()
         return cookies.contains("SAPISID") || cookies.contains("__Secure-3PAPISID")
     }
 
@@ -80,10 +82,11 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun harvestCookies() {
-        val cm = CookieManager.getInstance()
-        val yt = cm.getCookie("https://www.youtube.com").orEmpty()
-        val google = cm.getCookie("https://www.google.com").orEmpty()
-        val merged = listOf(yt, google).filter { it.isNotBlank() }.joinToString("; ")
-        YouTubeAuth.updateFromCookieString(merged)
+        val yt = CookieManager.getInstance().getCookie("https://www.youtube.com").orEmpty()
+        YouTubeAuth.updateFromCookieString(yt)
+    }
+
+    companion object {
+        const val EXTRA_PROFILE = "profile"
     }
 }
