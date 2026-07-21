@@ -71,10 +71,34 @@ object InnertubeClient {
     /** A page of results plus the token to fetch the next page (null if none). */
     data class FeedPage(val items: List<VideoItem>, val continuation: String?)
 
+    /** A home category filter (e.g. All, Music, Gaming). token=null means "All". */
+    data class Chip(val title: String, val token: String?)
+
+    data class HomeResult(val page: FeedPage, val chips: List<Chip>)
+
     private fun page(json: JSONObject) = FeedPage(collectVideos(json), findContinuation(json))
 
     /** The home feed — personalized when authenticated, popular otherwise. */
     fun homeFeed(): FeedPage = page(post("browse") { put("browseId", "FEwhat_to_watch") })
+
+    /** Home feed plus its category chips (from YouTube's own chip bar). */
+    fun homeFeedWithChips(): HomeResult {
+        val json = post("browse") { put("browseId", "FEwhat_to_watch") }
+        return HomeResult(page(json), findChips(json))
+    }
+
+    private fun findChips(root: JSONObject): List<Chip> {
+        val out = LinkedHashMap<String, Chip>()
+        walk(root) { obj ->
+            val c = obj.optJSONObject("chipCloudChipRenderer") ?: return@walk
+            val title = text(c.opt("text")) ?: return@walk
+            val token = c.optJSONObject("navigationEndpoint")
+                ?.optJSONObject("continuationCommand")?.optString("token")
+                ?.takeIf { it.isNotBlank() }
+            out[title] = Chip(title, token)
+        }
+        return out.values.toList()
+    }
 
     /** Search results (videos only). */
     fun search(query: String): FeedPage = page(post("search") { put("query", query) })

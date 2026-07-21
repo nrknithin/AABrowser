@@ -19,6 +19,13 @@ object YouTubeRepo {
         else FeedPage(emptyList(), null)
     }
 
+    suspend fun homeWithChips(): InnertubeClient.HomeResult = withContext(Dispatchers.IO) {
+        val r = runCatching { InnertubeClient.homeFeedWithChips() }.getOrNull()
+        if (r != null && r.page.items.isNotEmpty()) r
+        else if (YouTubeAuth.isSignedIn) InnertubeClient.HomeResult(InnertubeClient.subscriptionsFeed(), emptyList())
+        else InnertubeClient.HomeResult(FeedPage(emptyList(), null), emptyList())
+    }
+
     suspend fun search(query: String): FeedPage = withContext(Dispatchers.IO) {
         if (query.isBlank()) FeedPage(emptyList(), null) else InnertubeClient.search(query)
     }

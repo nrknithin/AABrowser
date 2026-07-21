@@ -55,6 +55,8 @@ class MainActivity : AppCompatActivity() {
     private var fullscreenCallback: WebChromeClient.CustomViewCallback? = null
 
     private var playingVideoId: String? = null
+    private var allowWebTouch = false
+    private var userSeeking = false
     private var controlsVisible = true
     private val hideControlsRunnable = Runnable { setControlsVisible(false) }
     private val controlsHandler = android.os.Handler(android.os.Looper.getMainLooper())
@@ -114,10 +116,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupRail() {
-        binding.railMenu.setOnClickListener { showMenu() }
-        binding.railHome.setOnClickListener { showSection(Section.HOME) }
-        binding.railSearch.setOnClickListener { showSection(Section.SEARCH) }
-        binding.railSubscriptions.setOnClickListener { showSection(Section.SUBSCRIPTIONS) }
+        // Rail always navigates, dismissing the player first if it's open.
+        binding.railMenu.setOnClickListener { closePlayer(); showMenu() }
+        binding.railHome.setOnClickListener { closePlayer(); showSection(Section.HOME) }
+        binding.railSearch.setOnClickListener { closePlayer(); showSection(Section.SEARCH) }
+        binding.railSubscriptions.setOnClickListener { closePlayer(); showSection(Section.SUBSCRIPTIONS) }
         binding.railBack.setOnClickListener { handleBack() }
     }
 
@@ -137,13 +140,15 @@ class MainActivity : AppCompatActivity() {
     private fun showSection(target: Section) {
         section = target
         binding.searchBarContainer.isVisible = target == Section.SEARCH
+        if (target != Section.HOME) binding.homeChipsScroll.isVisible = false
         highlightRail(target)
 
         when (target) {
             Section.HOME ->
                 if (YouTubeAuth.isSignedIn) {
-                    load(getString(R.string.empty_generic)) { YouTubeRepo.home() }
+                    loadHome()
                 } else {
+                    binding.homeChipsScroll.isVisible = false
                     clearFeed()
                     showEmpty(getString(R.string.empty_home_signed_out))
                 }
@@ -170,6 +175,57 @@ class MainActivity : AppCompatActivity() {
     private fun runSearch(query: String) {
         if (query.isBlank()) return
         load(getString(R.string.empty_search)) { YouTubeRepo.search(query) }
+    }
+
+    private fun loadHome() {
+        val gen = ++loadGeneration
+        items.clear()
+        continuation = null
+        loadingMore = false
+        adapter.submitList(emptyList())
+        binding.loading.isVisible = true
+        binding.emptyState.isVisible = false
+        binding.videoGrid.isVisible = false
+        lifecycleScope.launch {
+            val result = runCatching { YouTubeRepo.homeWithChips() }
+            if (gen != loadGeneration) return@launch
+            binding.loading.isVisible = false
+            result.onSuccess { home ->
+                renderChips(home.chips)
+                items.addAll(home.page.items)
+                continuation = home.page.continuation
+                adapter.submitList(items.toList())
+                if (items.isEmpty()) showEmpty(getString(R.string.empty_generic)) else {
+                    binding.videoGrid.isVisible = true
+                    binding.videoGrid.scrollToPosition(0)
+                }
+            }.onFailure {
+                showEmpty(getString(R.string.load_error, it.message ?: "unknown"))
+            }
+        }
+    }
+
+    private fun renderChips(chips: List<com.nrknithin.aayt.data.InnertubeClient.Chip>) {
+        val group = binding.homeChipsRow
+        group.removeAllViews()
+        if (chips.isEmpty() || section != Section.HOME) {
+            binding.homeChipsScroll.isVisible = false
+            return
+        }
+        chips.take(8).forEach { chip ->
+            val view = com.google.android.material.chip.Chip(this).apply {
+                text = chip.title
+                isCheckable = true
+                isChecked = chip.token == null
+                setOnClickListener {
+                    isChecked = true
+                    if (chip.token == null) loadHome()
+                    else load(getString(R.string.empty_generic)) { YouTubeRepo.more(chip.token) }
+                }
+            }
+            group.addView(view)
+        }
+        binding.homeChipsScroll.isVisible = true
     }
 
     private fun clearFeed() {
@@ -251,9 +307,17 @@ class MainActivity : AppCompatActivity() {
 
     // --- player ----------------------------------------------------------
 
-    @SuppressLint("SetJavaScriptEnabled")
+    @SuppressLint("SetJavaScriptEnabled", "ClickableViewAccessibility")
     private fun setupPlayer() {
         CookieManager.getInstance().setAcceptCookie(true)
+        // Consume every touch on the video so YouTube's player never sees a tap
+        // (no accidental play/pause). Each tap toggles our own controls instead.
+        // Only a synthesized fullscreen tap is allowed through (allowWebTouch).
+        binding.playerWeb.setOnTouchListener { _, ev ->
+            if (allowWebTouch) return@setOnTouchListener false
+            if (ev.action == android.view.MotionEvent.ACTION_UP) toggleControls()
+            true
+        }
         with(binding.playerWeb) {
             CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
             settings.javaScriptEnabled = true
@@ -267,9 +331,16 @@ class MainActivity : AppCompatActivity() {
             webViewClient = object : android.webkit.WebViewClient() {
                 override fun onPageFinished(view: WebView, url: String?) {
                     super.onPageFinished(view, url)
-                    // Blow the player up to fill and hide the rest of the page.
                     view.evaluateJavascript(PLAYER_SKIN_JS, null)
-                    view.postDelayed({ view.evaluateJavascript(PLAYER_SKIN_JS, null) }, 1500)
+                    view.postDelayed({ view.evaluateJavascript(PLAYER_SKIN_JS, null) }, 1400)
+                    view.postDelayed({ view.evaluateJavascript(PLAYER_SKIN_JS, null) }, 3000)
+                    // Set max quality early (before fullscreen) so the quality
+                    // switch doesn't restart the video mid-fullscreen.
+                    view.postDelayed({ setMaxQuality() }, 1000)
+                    // Then auto-fullscreen via a synthesized real touch (fullscreen
+                    // requires a user gesture).
+                    view.postDelayed({ synthTapForFullscreen() }, 1600)
+                    view.postDelayed({ synthTapForFullscreen() }, 2900)
                 }
             }
             webChromeClient = object : WebChromeClient() {
@@ -291,6 +362,86 @@ class MainActivity : AppCompatActivity() {
         binding.playerForward.setOnClickListener { seek(10); nudgeControls() }
         binding.playerNext.setOnClickListener { playNext() }
         binding.playerPlayPause.setOnClickListener { togglePlayPause(); nudgeControls() }
+        binding.playerQuality.setOnClickListener { showQualityPicker(); nudgeControls() }
+        binding.playerSeek.setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sb: android.widget.SeekBar, progress: Int, fromUser: Boolean) {
+                if (fromUser) binding.playerTime.text = formatTime(progress)
+            }
+            override fun onStartTrackingTouch(sb: android.widget.SeekBar) {
+                userSeeking = true
+                controlsHandler.removeCallbacks(hideControlsRunnable)
+            }
+            override fun onStopTrackingTouch(sb: android.widget.SeekBar) {
+                userSeeking = false
+                binding.playerWeb.evaluateJavascript(
+                    "(function(){var v=document.querySelector('video');if(v)v.currentTime=${sb.progress};})();",
+                    null
+                )
+                nudgeControls()
+            }
+        })
+    }
+
+    private fun formatTime(totalSeconds: Int): String {
+        val h = totalSeconds / 3600
+        val m = (totalSeconds % 3600) / 60
+        val s = totalSeconds % 60
+        return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%d:%02d".format(m, s)
+    }
+
+    private fun setMaxQuality() {
+        binding.playerWeb.evaluateJavascript(
+            "(function(){var p=document.getElementById('movie_player');" +
+                "if(p&&p.getAvailableQualityLevels){var q=p.getAvailableQualityLevels();" +
+                "if(q&&q.length){var b=q[0];try{if(p.setPlaybackQualityRange)p.setPlaybackQualityRange(b,b);" +
+                "if(p.setPlaybackQuality)p.setPlaybackQuality(b);}catch(e){}}}})();",
+            null
+        )
+    }
+
+    private fun showQualityPicker() {
+        binding.playerWeb.evaluateJavascript(
+            "(function(){var p=document.getElementById('movie_player');" +
+                "return (p&&p.getAvailableQualityLevels)?JSON.stringify(p.getAvailableQualityLevels()):'[]';})();"
+        ) { json ->
+            val levels = parseQualityLevels(json)
+            if (levels.isEmpty()) {
+                Toast.makeText(this, R.string.player_quality_unavailable, Toast.LENGTH_SHORT).show()
+                return@evaluateJavascript
+            }
+            val labels = levels.map { qualityLabel(it) }.toTypedArray()
+            MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.player_quality)
+                .setItems(labels) { _, which ->
+                    val q = levels[which]
+                    binding.playerWeb.evaluateJavascript(
+                        "(function(){var p=document.getElementById('movie_player');if(p){try{" +
+                            "if(p.setPlaybackQualityRange)p.setPlaybackQualityRange('$q','$q');" +
+                            "if(p.setPlaybackQuality)p.setPlaybackQuality('$q');}catch(e){}}})();",
+                        null
+                    )
+                }
+                .show()
+        }
+    }
+
+    private fun parseQualityLevels(json: String?): List<String> {
+        val raw = json ?: return emptyList()
+        return Regex("\"([a-z0-9]+)\"").findAll(raw).map { it.groupValues[1] }.toList()
+    }
+
+    private fun qualityLabel(code: String): String = when (code) {
+        "highres", "hd2880" -> "2880p"
+        "hd2160" -> "2160p (4K)"
+        "hd1440" -> "1440p"
+        "hd1080" -> "1080p"
+        "hd720" -> "720p"
+        "large" -> "480p"
+        "medium" -> "360p"
+        "small" -> "240p"
+        "tiny" -> "144p"
+        "auto" -> getString(R.string.player_quality_auto)
+        else -> code
     }
 
     private fun openVideo(item: VideoItem) {
@@ -304,17 +455,57 @@ class MainActivity : AppCompatActivity() {
         binding.infoPanel.isVisible = false
         binding.playerContainer.isVisible = true
         binding.playerPlayPause.setIconResource(R.drawable.pause_24px)
-        setControlsVisible(true)
+        // Controls hidden by default — they appear only when you tap the video.
+        setControlsVisible(false)
+        // Cover the load/fullscreen transition with a black loading screen.
+        binding.playerLoadingCover.isVisible = true
+        controlsHandler.removeCallbacks(revealPlayerRunnable)
+        controlsHandler.postDelayed(revealPlayerRunnable, 6000) // fallback reveal
+        controlsHandler.removeCallbacks(playerStateRunnable)
+        controlsHandler.postDelayed(playerStateRunnable, 800)
         binding.playerWeb.loadUrl("https://m.youtube.com/watch?v=${item.id}")
     }
 
     private fun closePlayer() {
+        if (!binding.playerContainer.isVisible) return
         exitWebFullscreen()
         controlsHandler.removeCallbacks(hideControlsRunnable)
+        controlsHandler.removeCallbacks(playerStateRunnable)
+        controlsHandler.removeCallbacks(revealPlayerRunnable)
+        binding.playerLoadingCover.isVisible = false
         binding.playerWeb.loadUrl("about:blank")
         binding.playerContainer.isVisible = false
         binding.infoPanel.isVisible = false
         playingVideoId = null
+    }
+
+    // Keeps the play/pause icon and the seek bar in sync with the actual video
+    // (taps never reach YouTube's player, so only our controls change playback).
+    private val playerStateRunnable = object : Runnable {
+        override fun run() {
+            binding.playerWeb.evaluateJavascript(
+                "(function(){var v=document.querySelector('video');if(!v)return '';" +
+                    "return (Math.floor(v.currentTime||0))+'|'+(Math.floor(v.duration||0))+'|'+(v.paused?1:0);})();"
+            ) { r ->
+                val s = r?.trim()?.removeSurrounding("\"").orEmpty()
+                val parts = s.split("|")
+                if (parts.size == 3) {
+                    val t = parts[0].toIntOrNull() ?: 0
+                    val d = parts[1].toIntOrNull() ?: 0
+                    val paused = parts[2] == "1"
+                    binding.playerPlayPause.setIconResource(
+                        if (paused) R.drawable.play_arrow_24px else R.drawable.pause_24px
+                    )
+                    if (!userSeeking && d > 0) {
+                        binding.playerSeek.max = d
+                        binding.playerSeek.progress = t
+                        binding.playerTime.text = formatTime(t)
+                        binding.playerDuration.text = formatTime(d)
+                    }
+                }
+            }
+            if (binding.playerContainer.isVisible) controlsHandler.postDelayed(this, 500)
+        }
     }
 
     private fun seek(deltaSeconds: Int) {
@@ -348,11 +539,39 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun toggleControls() = setControlsVisible(!controlsVisible)
+    private fun forceUnmute() {
+        binding.playerWeb.evaluateJavascript("window.__aaytUnmute&&window.__aaytUnmute();", null)
+    }
+
+    /** Feed a real touch into the WebView so the page's fullscreen listener (which
+     *  requires a user gesture) can enter fullscreen automatically. */
+    private fun synthTapForFullscreen() {
+        if (fullscreenView != null) return
+        val w = binding.playerWeb.width
+        val h = binding.playerWeb.height
+        if (w == 0 || h == 0) return
+        val now = android.os.SystemClock.uptimeMillis()
+        val x = w / 2f
+        val y = h * 0.35f
+        val down = android.view.MotionEvent.obtain(now, now, android.view.MotionEvent.ACTION_DOWN, x, y, 0)
+        val up = android.view.MotionEvent.obtain(now, now + 60, android.view.MotionEvent.ACTION_UP, x, y, 0)
+        allowWebTouch = true
+        binding.playerWeb.dispatchTouchEvent(down)
+        binding.playerWeb.dispatchTouchEvent(up)
+        down.recycle()
+        up.recycle()
+        binding.playerWeb.postDelayed({ allowWebTouch = false }, 150)
+    }
+
+    private fun toggleControls() {
+        forceUnmute()
+        setControlsVisible(!controlsVisible)
+    }
 
     private fun setControlsVisible(visible: Boolean) {
         controlsVisible = visible
         binding.playerControls.isVisible = visible
+        binding.playerSeekRow.isVisible = visible
         binding.playerClose.isVisible = visible
         binding.playerInfo.isVisible = visible
         if (!visible) binding.infoPanel.isVisible = false
@@ -366,18 +585,26 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun enterWebFullscreen(view: View?, callback: WebChromeClient.CustomViewCallback?) {
-        if (view == null) return
+        if (view == null) {
+            callback?.onCustomViewHidden()
+            return
+        }
         fullscreenView = view
         fullscreenCallback = callback
-        (window.decorView as ViewGroup).addView(
-            view,
-            FrameLayout.LayoutParams(-1, -1)
-        )
+        // Add into the VIDEO layer — always below the overlay, so the overlay keeps
+        // owning taps (video never receives them → never auto-plays/pauses).
+        binding.playerVideoHost.addView(view, FrameLayout.LayoutParams(-1, -1))
+        // Now that it's truly fullscreen, reveal (drop the black loading cover)
+        // after a short beat so the first frame is ready.
+        controlsHandler.removeCallbacks(revealPlayerRunnable)
+        controlsHandler.postDelayed(revealPlayerRunnable, 350)
     }
+
+    private val revealPlayerRunnable = Runnable { binding.playerLoadingCover.isVisible = false }
 
     private fun exitWebFullscreen() {
         val view = fullscreenView ?: return
-        (window.decorView as ViewGroup).removeView(view)
+        binding.playerVideoHost.removeView(view)
         fullscreenView = null
         runCatching { fullscreenCallback?.onCustomViewHidden() }
         fullscreenCallback = null
@@ -465,24 +692,64 @@ class MainActivity : AppCompatActivity() {
         // player's own fullscreen button drives onShowCustomView for true
         // fullscreen, and being signed in it plays Premium (no ads).
         // style.textContent is not a Trusted-Types sink, so this is CSP-safe.
+        // Only hides page chrome and starts playback — never repositions the
+        // <video> element (doing so breaks its hardware surface → black screen).
+        // Fullscreen is achieved via the browser's real fullscreen (below).
         private const val PLAYER_SKIN_JS = """
 (function(){
   try{
     var id='aayt-player-skin';
-    var s=document.getElementById(id)||document.createElement('style');
-    s.id=id;
-    s.textContent=
-      'html,body{background:#000!important;margin:0!important;overflow:hidden!important;height:100%!important}'+
-      /* pull the player element out to fill the screen */
-      '#player,#movie_player,.html5-video-player,ytm-watch,#player-container-id{position:fixed!important;top:0!important;left:0!important;right:0!important;bottom:0!important;width:100vw!important;height:100vh!important;z-index:2147483000!important;background:#000!important;margin:0!important}'+
-      '.html5-main-video,video{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;object-fit:contain!important;background:#000!important;z-index:2147483000!important}'+
-      /* hide YouTube's own controls/gradients — we use native controls */
-      '.ytp-chrome-bottom,.ytp-chrome-top,.ytp-gradient-bottom,.ytp-gradient-top,.player-controls-background,.ytp-cued-thumbnail-overlay,.ytm-player-control-overlay,.player-controls,.ytp-spinner{display:none!important}'+
-      /* hide everything below the player (details, comments, related) */
-      'ytm-item-section-renderer,ytm-comment-section-renderer,#comments,.slim-video-metadata-section,ytm-single-column-watch-next-results-renderer,.related-chips-slot-wrapper{display:none!important}';
+    var s=document.getElementById(id)||document.createElement('style'); s.id=id;
+    // Hide page chrome + YouTube's own controls. Never resize/reposition the
+    // <video> or its player (that blacks out the hardware surface on some devices).
+    s.textContent='html,body{background:#000!important}'+
+      'ytm-pivot-bar-renderer,.pivot-bar,ytm-mobile-topbar-renderer,.mobile-topbar-renderer,'+
+      'ytm-item-section-renderer,ytm-comment-section-renderer,#comments,'+
+      'ytm-single-column-watch-next-results-renderer,.related-chips-slot-wrapper,'+
+      '.slim-video-metadata-section{display:none!important}'+
+      '.ytp-chrome-bottom,.ytp-chrome-top,.ytp-gradient-bottom,.ytp-gradient-top,'+
+      '.player-controls-content,.ytm-player-control-overlay{display:none!important}';
     (document.head||document.documentElement).appendChild(s);
-    var v=document.querySelector('video');
-    if(v){ v.muted=false; v.volume=1.0; if(v.paused){v.play().catch(function(){});} }
+  }catch(e){}
+  // One real tap on the video enters true fullscreen (onShowCustomView), which
+  // fills the pane with a correctly-rendered surface (no black, no CSS resize).
+  try{
+    if(!window.__aaytFsInit){
+      window.__aaytFsInit=true;
+      document.addEventListener('click',function(){
+        if(!document.fullscreenElement){
+          var p=document.getElementById('movie_player'), v=document.querySelector('video');
+          var el=(p&&p.requestFullscreen)?p:v;
+          if(el&&el.requestFullscreen){ el.requestFullscreen().catch(function(){}); }
+        }
+      },true);
+    }
+  }catch(e){}
+  // Persistent unmute: YouTube autostarts muted and re-mutes on JS unmute, so we
+  // force it back on every volumechange, call the player's unMute(), and click
+  // the 'tap to unmute' pill — repeatedly for the first several seconds.
+  try{
+    if(!window.__aaytUnmuteInit){
+      window.__aaytUnmuteInit=true;
+      document.addEventListener('volumechange',function(e){
+        var t=e.target; if(t&&t.tagName==='VIDEO'&&t.muted){ t.muted=false; }
+      },true);
+    }
+    window.__aaytUnmute=function(){
+      // Unmute only — never resume playback (that fought the user's pause).
+      var v=document.querySelector('video');
+      if(v){ if(v.muted) v.muted=false; try{v.volume=1;}catch(e){} }
+      var p=document.getElementById('movie_player');
+      if(p&&p.unMute){ try{p.unMute();p.setVolume(100);}catch(e){} }
+      var pill=document.querySelector('.ytp-unmute,button[aria-label*="unmute" i],button[aria-label*="Unmute" i],.ytm-unmute-banner button');
+      if(pill){ try{pill.click();}catch(e){} }
+    };
+    window.__aaytUnmute();
+    if(!window.__aaytUnmuteTimer){
+      var n=0; window.__aaytUnmuteTimer=setInterval(function(){
+        window.__aaytUnmute(); if(++n>15){ clearInterval(window.__aaytUnmuteTimer); window.__aaytUnmuteTimer=null; }
+      },600);
+    }
   }catch(e){}
 })();
 """

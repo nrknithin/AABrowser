@@ -32,6 +32,9 @@
     <string name="player_play_pause">Play or pause</string>
     <string name="player_next">Next video</string>
     <string name="player_no_next">No next video</string>
+    <string name="player_quality">Quality</string>
+    <string name="player_quality_auto">Auto (network)</string>
+    <string name="player_quality_unavailable">Quality options not ready yet</string>
 
     <string name="login_done">Done</string>
     <string name="login_hint">Sign in to your Google account — this window closes automatically when done.</string>
