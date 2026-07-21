@@ -45,6 +45,8 @@ android {
 
     buildTypes {
         release {
+            // R8 shrinking on, with keep rules (proguard-rules.pro) for
+            // NewPipeExtractor + Rhino JS + nanojson/jsoup so extraction survives.
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
