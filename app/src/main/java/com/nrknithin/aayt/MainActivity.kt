@@ -22,10 +22,14 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import com.google.android.material.color.DynamicColors
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.snackbar.Snackbar
+import com.google.android.material.textfield.TextInputEditText
+import com.nrknithin.aayt.data.BookmarkRepository
 import com.nrknithin.aayt.data.Preferences
 import com.nrknithin.aayt.data.VideoItem
 import com.nrknithin.aayt.data.YouTubeAuth
 import com.nrknithin.aayt.data.YouTubeRepo
+import com.nrknithin.aayt.data.YouTubeLinks
 import com.nrknithin.aayt.databinding.ActivityMainBinding
 import com.nrknithin.aayt.model.AppThemeMode
 import com.nrknithin.aayt.ui.VideoAdapter
@@ -39,10 +43,11 @@ import kotlinx.coroutines.launch
  */
 class MainActivity : AppCompatActivity() {
 
-    private enum class Section { HOME, SEARCH, SUBSCRIPTIONS, LIBRARY }
+    private enum class Section { HOME, SEARCH, SUBSCRIPTIONS, SAVED }
 
     private lateinit var binding: ActivityMainBinding
-    private val adapter = VideoAdapter(::openVideo)
+    private val adapter = VideoAdapter(::openVideo, ::toggleBookmark)
+    private val bookmarks by lazy { BookmarkRepository.create(this) }
     private var section = Section.HOME
 
     // Pagination state for the current feed.
@@ -55,6 +60,7 @@ class MainActivity : AppCompatActivity() {
     private var fullscreenCallback: WebChromeClient.CustomViewCallback? = null
 
     private var playingVideoId: String? = null
+    private var playingVideo: VideoItem? = null
     private var allowWebTouch = false
     private var userSeeking = false
     private var controlsVisible = true
@@ -67,6 +73,12 @@ class MainActivity : AppCompatActivity() {
         harvestSessionCookies()
         // Reload whatever section is showing now that we're (possibly) signed in.
         showSection(Section.HOME)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIncomingVideo(intent)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -84,13 +96,112 @@ class MainActivity : AppCompatActivity() {
         setupPlayer()
         setupBackHandling()
 
-        showSection(Section.HOME)
+        showSection(if (intent.action == Intent.ACTION_SEND || intent.action == Intent.ACTION_VIEW) Section.SAVED else Section.HOME)
+        if (savedInstanceState == null) handleIncomingVideo(intent)
     }
 
     override fun onResume() {
         super.onResume()
         // Pick up a login that just completed.
         harvestSessionCookies()
+        refreshBookmarks()
+    }
+
+    private fun handleIncomingVideo(incoming: Intent) {
+        if (incoming.action != Intent.ACTION_SEND && incoming.action != Intent.ACTION_VIEW) return
+        val link = runCatching {
+            if (incoming.action == Intent.ACTION_VIEW) YouTubeLinks.parse(incoming.dataString.orEmpty())
+            else YouTubeLinks.fromSharedText(incoming.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString())
+        }.getOrNull()
+        val subject = runCatching { incoming.getStringExtra(Intent.EXTRA_SUBJECT)?.take(120) }.getOrNull()
+        // Consume once: a later theme/configuration recreation must not replay a share.
+        setIntent(Intent(this, MainActivity::class.java))
+        if (link == null) {
+            Toast.makeText(this, R.string.invalid_youtube_link, Toast.LENGTH_LONG).show()
+            return
+        }
+        val previous = bookmarks.all().firstOrNull { it.id == link.id }
+        val view = layoutInflater.inflate(R.layout.dialog_shared_video, null)
+        val name = view.findViewById<TextInputEditText>(R.id.sharedVideoName)
+        name.setText(previous?.title ?: subject?.takeIf { YouTubeLinks.fromSharedText(it) == null })
+        view.findViewById<android.widget.TextView>(R.id.sharedVideoUrl).text = link.url
+        fun video() = VideoItem(
+            link.id,
+            name.text?.toString()?.trim().orEmpty().ifBlank { getString(R.string.shared_video_fallback, link.id) },
+            previous?.channel.orEmpty(),
+            previous?.thumbnailUrl ?: "https://i.ytimg.com/vi/${link.id}/hqdefault.jpg",
+            previous?.durationText,
+            link.startSeconds
+        )
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.shared_video_title)
+            .setView(view)
+            .setPositiveButton(R.string.play_now) { _, _ ->
+                hideKeyboard()
+                closePlayer()
+                openVideo(video())
+            }
+            .setNegativeButton(R.string.save_for_later) { _, _ ->
+                hideKeyboard()
+                if (bookmarks.save(video())) {
+                    closePlayer()
+                    showSection(Section.SAVED)
+                    Toast.makeText(this, R.string.video_saved, Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, R.string.bookmark_limit, Toast.LENGTH_LONG).show()
+                }
+            }
+            .show()
+    }
+
+    private fun renderSaved() {
+        loadGeneration++ // Invalidate an in-flight feed before showing local bookmarks.
+        continuation = null
+        loadingMore = false
+        val saved = bookmarks.all()
+        items.clear()
+        items.addAll(saved)
+        adapter.updateSavedIds(saved.map { it.id }.toSet())
+        adapter.submitList(items.toList())
+        binding.loading.isVisible = false
+        if (items.isEmpty()) showEmpty(getString(R.string.empty_saved)) else {
+            binding.emptyState.isVisible = false
+            binding.videoGrid.isVisible = true
+        }
+    }
+
+    private fun refreshBookmarks() {
+        val savedIds = bookmarks.all().map { it.id }.toSet()
+        adapter.updateSavedIds(savedIds)
+        val saved = playingVideoId in savedIds
+        binding.playerSave.setIconResource(if (saved) R.drawable.bookmark_filled_24px else R.drawable.bookmark_24px)
+        binding.playerSave.contentDescription = playingVideo?.let {
+            getString(if (saved) R.string.remove_saved_named else R.string.save_video_named, it.title)
+        } ?: getString(R.string.save_video)
+        if (section == Section.SAVED) renderSaved()
+    }
+
+    private fun toggleBookmark(item: VideoItem) {
+        val saved = bookmarks.all()
+        val previousIndex = saved.indexOfFirst { it.id == item.id }
+        val previous = saved.getOrNull(previousIndex)
+        if (previous != null) {
+            bookmarks.remove(item.id)
+            refreshBookmarks()
+            Snackbar.make(binding.root, R.string.video_removed, Snackbar.LENGTH_LONG)
+                .setAction(R.string.undo) {
+                    if (!bookmarks.save(previous, previousIndex)) {
+                        Toast.makeText(this, R.string.bookmark_limit, Toast.LENGTH_LONG).show()
+                    }
+                    refreshBookmarks()
+                }.show()
+        } else if (bookmarks.save(item)) {
+            refreshBookmarks()
+            Snackbar.make(binding.root, R.string.video_saved, Snackbar.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(this, R.string.bookmark_limit, Toast.LENGTH_LONG).show()
+        }
+        if (binding.playerContainer.isVisible) nudgeControls()
     }
 
     private fun harvestSessionCookies() {
@@ -121,6 +232,7 @@ class MainActivity : AppCompatActivity() {
         binding.railHome.setOnClickListener { closePlayer(); showSection(Section.HOME) }
         binding.railSearch.setOnClickListener { closePlayer(); showSection(Section.SEARCH) }
         binding.railSubscriptions.setOnClickListener { closePlayer(); showSection(Section.SUBSCRIPTIONS) }
+        binding.railSaved.setOnClickListener { closePlayer(); showSection(Section.SAVED) }
         binding.railBack.setOnClickListener { handleBack() }
     }
 
@@ -139,7 +251,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun showSection(target: Section) {
         section = target
+        hideKeyboard()
         binding.searchBarContainer.isVisible = target == Section.SEARCH
+        binding.savedHeader.isVisible = target == Section.SAVED
         if (target != Section.HOME) binding.homeChipsScroll.isVisible = false
         highlightRail(target)
 
@@ -159,10 +273,7 @@ class MainActivity : AppCompatActivity() {
                     clearFeed()
                     showEmpty(getString(R.string.empty_signed_out))
                 }
-            Section.LIBRARY -> {
-                clearFeed()
-                showEmpty(getString(R.string.library_soon))
-            }
+            Section.SAVED -> renderSaved()
             Section.SEARCH -> {
                 clearFeed()
                 showEmpty(getString(R.string.search_prompt))
@@ -290,7 +401,8 @@ class MainActivity : AppCompatActivity() {
         val map = mapOf(
             Section.HOME to binding.railHome,
             Section.SEARCH to binding.railSearch,
-            Section.SUBSCRIPTIONS to binding.railSubscriptions
+            Section.SUBSCRIPTIONS to binding.railSubscriptions,
+            Section.SAVED to binding.railSaved
         )
         val active = resolveColor(androidx.appcompat.R.attr.colorPrimary)
         val inactive = resolveColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
@@ -354,6 +466,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
         binding.playerClose.setOnClickListener { closePlayer() }
+        binding.playerSave.setOnClickListener { playingVideo?.let(::toggleBookmark) }
         binding.playerInfo.setOnClickListener {
             binding.infoPanel.isVisible = !binding.infoPanel.isVisible
         }
@@ -445,11 +558,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun openVideo(item: VideoItem) {
-        if (item.id.isBlank()) {
+        if (!YouTubeLinks.isVideoId(item.id)) {
             Toast.makeText(this, R.string.video_unavailable, Toast.LENGTH_SHORT).show()
             return
         }
         playingVideoId = item.id
+        playingVideo = item
+        refreshBookmarks()
         binding.infoTitle.text = item.title
         binding.infoChannel.text = item.channel
         binding.infoPanel.isVisible = false
@@ -463,7 +578,8 @@ class MainActivity : AppCompatActivity() {
         controlsHandler.postDelayed(revealPlayerRunnable, 6000) // fallback reveal
         controlsHandler.removeCallbacks(playerStateRunnable)
         controlsHandler.postDelayed(playerStateRunnable, 800)
-        binding.playerWeb.loadUrl("https://m.youtube.com/watch?v=${item.id}")
+        val start = if (item.startSeconds > 0) "&t=${item.startSeconds.coerceAtMost(604_800)}s" else ""
+        binding.playerWeb.loadUrl("https://m.youtube.com/watch?v=${item.id}$start")
     }
 
     private fun closePlayer() {
@@ -477,6 +593,7 @@ class MainActivity : AppCompatActivity() {
         binding.playerContainer.isVisible = false
         binding.infoPanel.isVisible = false
         playingVideoId = null
+        playingVideo = null
     }
 
     // Keeps the play/pause icon and the seek bar in sync with the actual video
@@ -531,7 +648,7 @@ class MainActivity : AppCompatActivity() {
     private fun playNext() {
         val current = playingVideoId ?: return
         val idx = items.indexOfFirst { it.id == current }
-        val next = items.getOrNull(idx + 1)
+        val next = if (idx >= 0) items.getOrNull(idx + 1) else null
         if (next != null) {
             openVideo(next)
         } else {
@@ -574,6 +691,7 @@ class MainActivity : AppCompatActivity() {
         binding.playerSeekRow.isVisible = visible
         binding.playerClose.isVisible = visible
         binding.playerInfo.isVisible = visible
+        binding.playerSave.isVisible = visible
         if (!visible) binding.infoPanel.isVisible = false
         controlsHandler.removeCallbacks(hideControlsRunnable)
         if (visible) controlsHandler.postDelayed(hideControlsRunnable, 4000)
@@ -629,7 +747,7 @@ class MainActivity : AppCompatActivity() {
                 loginLauncher.launch(intent)
             }
         }
-        btn(R.id.menuBtnLibrary).setOnClickListener { dialog.dismiss(); showSection(Section.LIBRARY) }
+        btn(R.id.menuBtnSaved).setOnClickListener { dialog.dismiss(); showSection(Section.SAVED) }
         btn(R.id.menuBtnTheme).setOnClickListener { dialog.dismiss(); cycleTheme() }
         btn(R.id.menuBtnRefresh).setOnClickListener { dialog.dismiss(); showSection(section) }
         // Sign out: last tile, only when signed in.
@@ -682,6 +800,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        controlsHandler.removeCallbacksAndMessages(null)
         binding.playerWeb.destroy()
         super.onDestroy()
     }

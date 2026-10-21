@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Accept YouTube video links through Android Share/Open with. Choose Play now or Save for later; optionally name shared bookmarks. Validate hosts and video IDs, preserve shared timestamps, and discard tracking query parameters.
+- Add Saved to the navigation rail and menu, plus bookmark toggles on video cards and player controls. Remove saved videos with Undo.
+- Keep bookmarks in app-private storage, excluded from Android cloud backup and device transfer. No new runtime dependencies, analytics, or account sync.
+- Keep the navigation rail scrollable on short screens.
+
 ## 1.2 (2026-07-20)
 
 - **AAYT car UI.** Native side rail (car-app style): Menu, Home, Search, Subscriptions,

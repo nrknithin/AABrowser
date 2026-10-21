@@ -62,7 +62,7 @@
             app:iconSize="26dp" />
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/menuBtnLibrary"
+            android:id="@+id/menuBtnSaved"
             style="@style/Widget.Material3.Button.TonalButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -70,9 +70,9 @@
             android:layout_margin="6dp"
             android:paddingTop="14dp"
             android:paddingBottom="14dp"
-            android:text="@string/section_library"
+            android:text="@string/section_saved"
             android:textSize="12sp"
-            app:icon="@drawable/library_24px"
+            app:icon="@drawable/bookmark_filled_24px"
             app:iconGravity="top"
             app:iconSize="26dp" />
 
