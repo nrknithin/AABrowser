@@ -1,27 +1,29 @@
 # AAYT — YouTube for Android Auto
 
 **A standalone, sideloadable YouTube viewer for Android Auto head units.**
-One fullscreen WebView locked to YouTube: video playback, voice search, Google sign-in — and nothing else. No address bar, no tabs, no general browsing.
+A native video grid with YouTube search, account feeds, local bookmarks, and a fullscreen YouTube WebView player. No address bar or browser tabs.
 
-AAYT is a GPLv3 derivative of [AABrowser](https://github.com/kododake/AABrowser) by kododake, which pioneered the technique of projecting a full Android activity onto Android Auto head units. All browser features were removed and the app was locked to YouTube. See [SPEC.md](SPEC.md) for the full specification.
+AAYT is a GPLv3 derivative of [AABrowser](https://github.com/kododake/AABrowser) by kododake, which pioneered the technique of projecting a full Android activity onto Android Auto head units. `SPEC.md` describes an earlier WebView-only design; the current implementation uses native feeds and controls.
 
 > [!CAUTION]
 > **Safety first.** This app is for passengers or for when you are safely parked. If you are driving, do not watch this screen. You are responsible for complying with local laws.
 
 > [!NOTE]
-> YouTube is a trademark of Google LLC. AAYT is an unofficial viewer that simply displays the YouTube website in an Android System WebView. It is not affiliated with or endorsed by Google, does not use the YouTube API, and does not modify, scrape, or ad-block the site.
+> YouTube is a trademark of Google LLC. AAYT is unofficial and is not affiliated with or endorsed by Google. Feeds use YouTube's internal Innertube endpoints; playback uses Android System WebView. There is no ad blocker.
 
 ## ✨ Features
 
 - 🚗 **Runs on the head unit** using the AABrowser projection technique (`CAR_LAUNCHER` activity + distraction-optimized metadata + AA "Unknown sources").
-- ▶️ **Full YouTube web app**: browse, search, playlists, subscriptions, watch history.
+- ▶️ **Native video grid**: typed search, personalized Home and Subscriptions when signed in.
 - 🖥️ **Fullscreen playback** with system bars hidden; screen never blanks while the app is up.
-- 🎙️ **Voice search** — YouTube's mic button works via a native `webkitSpeechRecognition` polyfill.
 - 🔐 **Google sign-in works** (Chrome user-agent + Client Hints identity spoof).
-- 🔒 **Domain lock**: only YouTube + the Google domains its auth/CDN need; everything else is blocked. HTTPS-only.
-- 🌓 **Light / AMOLED-dark themes**, global display scale, optional desktop layout.
-- 📱 **Share from phone**: `youtube.com` / `youtu.be` links open directly in AAYT.
-- 🕵️ **Zero telemetry.** No analytics, no update pings — the only network traffic is the WebView itself.
+- 🔒 **HTTPS transport**: cleartext requests are disabled. The login/player WebViews do not implement a domain allowlist.
+- 🌓 **Light / AMOLED-dark themes**.
+- 📱 **Share from phone**: share a YouTube watch, Shorts, Live, or `youtu.be` video link to AAYT and choose **Play now** or **Save for later**. Shared timestamps are preserved; tracking query parameters are discarded. Android may also offer AAYT under Open with for supported links; sharing does not require changing default link settings.
+- 🔖 **Local Saved videos**: tap the bookmark on a video card or in the player, then open **Saved** from the rail or menu. Tap a filled bookmark to remove it; **Undo** restores it. Shared videos can have an optional name. Bookmarks require no sign-in, are excluded from Android backup/transfer, and do not sync with YouTube's Watch Later playlist.
+- 🕵️ **No app-owned analytics or update checker.** Native API requests, thumbnails and WebViews still communicate with Google/YouTube. Signed-in requests reuse the YouTube session cookies. This is not a promise that Google performs no tracking.
+
+Saved videos are links, not downloaded videos. Thumbnails and playback need internet access. No captions controls or voice-search feature are implemented in the native UI. Profile opens YouTube's web library as an alternative for account playlists/history.
 
 ## 📋 Requirements
 
@@ -40,7 +42,7 @@ AAYT is a GPLv3 derivative of [AABrowser](https://github.com/kododake/AABrowser)
 ```bash
 ./gradlew assembleDebug     # → app/build/renamedApks/debug/AAYT-<version>_debug.apk
 ./gradlew assembleRelease   # requires signing config (see app/build.gradle.kts)
-./gradlew test              # unit tests (URL policy)
+./gradlew test              # unit tests (URL policy, bookmarks, account headers)
 ```
 
 Requires JDK 21 and Android SDK Platform 36.

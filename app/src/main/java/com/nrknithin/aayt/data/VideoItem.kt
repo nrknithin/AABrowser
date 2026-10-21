@@ -6,5 +6,6 @@ data class VideoItem(
     val title: String,
     val channel: String,
     val thumbnailUrl: String?,
-    val durationText: String?
+    val durationText: String?,
+    val startSeconds: Int = 0
 )

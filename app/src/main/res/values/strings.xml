@@ -5,13 +5,28 @@
     <string name="rail_home">Home</string>
     <string name="rail_search">Search</string>
     <string name="rail_subscriptions">Subscriptions</string>
-    <string name="rail_library">Library</string>
     <string name="menu_back">Back</string>
 
     <string name="section_home">Home</string>
     <string name="section_search">Search</string>
     <string name="section_subscriptions">Subscriptions</string>
-    <string name="section_library">Library</string>
+    <string name="section_saved">Saved</string>
+    <string name="saved_header">Saved · On this phone</string>
+    <string name="empty_saved">No saved videos yet. Tap a bookmark on a video, or share a YouTube link to AAYT.</string>
+    <string name="save_video">Save video</string>
+    <string name="save_video_named">Save %1$s</string>
+    <string name="remove_saved_named">Remove %1$s from saved</string>
+    <string name="video_saved">Saved for later</string>
+    <string name="video_removed">Removed from saved</string>
+    <string name="undo">Undo</string>
+    <string name="bookmark_limit">Saved videos is full. Remove a bookmark before saving another.</string>
+    <string name="shared_video_title">YouTube video</string>
+    <string name="shared_video_hint">Play now, or save for later on this phone. You can give the bookmark a name.</string>
+    <string name="bookmark_name_hint">Name (optional)</string>
+    <string name="shared_video_fallback">YouTube video · %1$s</string>
+    <string name="play_now">Play now</string>
+    <string name="save_for_later">Save for later</string>
+    <string name="invalid_youtube_link">Share a YouTube video link: youtube.com/watch, Shorts, Live, or youtu.be.</string>
 
     <string name="search_hint">Search YouTube</string>
     <string name="search_prompt">Type to search YouTube.</string>
@@ -21,7 +36,6 @@
     <string name="empty_search">No results.</string>
     <string name="empty_subscriptions">No recent videos from your subscriptions.</string>
     <string name="empty_signed_out">Sign in from the menu to see your subscriptions.</string>
-    <string name="library_soon">Library is coming soon.</string>
     <string name="load_error">Couldn\'t load: %1$s</string>
     <string name="video_unavailable">This video can\'t be opened.</string>
 
